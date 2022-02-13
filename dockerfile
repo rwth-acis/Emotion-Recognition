@@ -21,6 +21,7 @@ RUN pip3 install matplotlib==2.2.3
 RUN pip3 install pyaudio==0.2.11
 RUN pip3 install tensorflow==2.5.2
 RUN pip3 install numba==0.48
+RUN pip3 install pymongo
 RUN apt-get -y update
 RUN apt-get install -y ffmpeg
 RUN pip3 install ffmpeg-python

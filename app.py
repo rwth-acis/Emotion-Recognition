@@ -1,6 +1,6 @@
 from deep_emotion_recognition import DeepEmotionRecognizer
 from flask import Flask, Response, request
-#import pymongo
+import pymongo
 import json
 #from bson.objectid import ObjectId
 import datetime
@@ -80,8 +80,8 @@ def handle_audio(json_data):
 
 
 LANGUAGE = "en"
-MONGO_HOST = "localhost"
-MONGO_PORT = 27017
+MONGO_HOST = "137.226.232.75"
+MONGO_PORT = 32112
 
 APP = Flask(__name__)
 recognizer = sr.Recognizer()
@@ -137,23 +137,23 @@ APP.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 
 #Connecting with the database# WIll have to comment that in once it works with kube
-# try: 
-#     print("Trying to connect with the database...")
-#     mongo = pymongo.MongoClient(
-#          host=MONGO_HOST, 
-#          port= MONGO_PORT, 
-#          serverSelectionTimeoutMS = 10000
-#          )
-#     print("Checking connection with the server")
-#     mongo.server_info()  #triggers the exception if no connection
-#     print("Until now, everything is good")
-#     db = mongo.course
-#     db_emotion = mongo.emotion
-#     print("SUCCESS: connecting with the DB!")
+try: 
+    APP.logger.info("Trying to connect with the database...")
+    mongo = pymongo.MongoClient(
+         host=MONGO_HOST, 
+         port= MONGO_PORT, 
+         serverSelectionTimeoutMS = 10000
+         )
+    APP.logger.info("Checking connection with the server")
+    mongo.server_info()  #triggers the exception if no connection
+    print("Until now, everything is good")
+    db = mongo.course
+    db_emotion = mongo.emotion
+    print("SUCCESS: connecting with the DB!")
 
-# except Exception as ex:    
-#     print("ERROR: Cannot connect to the databse") 
-#     print(ex)
+except Exception as ex:    
+    APP.logger.info("ERROR: Cannot connect to the databse") 
+    APP.logger.info(ex)
 
 
 #given noSQL is not a relatinoal data-base system, there is really no need in initializing the users with an APPropiate /user function, instead the only methods avaliable will be /emotion/speech, and /emotion/text
@@ -171,15 +171,16 @@ def speech_emotion_recognition():
         #     audio = json_data["fileBody"]
         #     #course_id = json_data["course_id"]
         #     #item_id = json_data["item_id"] #optional parameter 
-        #     user_id = json_data["user"]
-        #     time = datetime.datetime.now()
+            user_id = json_data["user"]
+            time = datetime.datetime.now()
         except Exception as ex: 
         #     APP.logger.info("Something went wrong extracting JSON data")
-            print(ex)    
+            APP.logger.info(ex)    
 
 
 
-        # #TODO: Implement audio_handling function to spare this code
+        # #TODO: Implement audio_handling function to spare this code --- 
+        # OLD code to transform base 64 -> audio -> wav, not with function handle_audio(json)
         # APP.logger.info("The type fo the audio file extracted from the jason data is"+ str(type(audio)))
         # APP.logger.info("Creating a temporary mp3 file, the file will be stored in:")
         # APP.logger.info(str(os.getcwd()))
@@ -202,7 +203,7 @@ def speech_emotion_recognition():
 
         filename_wav = handle_audio(json_data)
         text_result = ""
-
+        # speech to text
         try: 
             with sr.AudioFile(filename_wav) as source: 
                 audio_data = recognizer.record(source)
@@ -221,12 +222,13 @@ def speech_emotion_recognition():
         # recognizing emotion
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
+            APP.logger.info("Predicted emotion succesfully")
 
         except Exception as ex:
             APP.logger.info(ex)
      
 
-        update = {#"user_id": user_id, 
+        update_bot = {#"user_id": user_id, 
         # "course_id":course_id,
         #  "item_id": item_id,
         #   "audio_type": data_type,
@@ -238,14 +240,28 @@ def speech_emotion_recognition():
         #        "time": "today",
                 "text": (text_result + "| predicted_emotion:" + str(emotion_array))
                 }
+        update_db = {"user_id": user_id, 
+        # "course_id":course_id,
+        #  "item_id": item_id,
+        #   "audio_type": data_type,
+        #    "emotion": ["predicted", 
+        #    "emotion",
+        #     "activation",
+        #      "coeffs"],
+        #       "valence": 1,
+                "time": time,
+                "text": text_result, 
+                "emotion": str(emotion_array)
 
-        # dbResponse = db_emotion.users.insert_one(update) MONGODB
-        # print(dbResponse.inserted_id) MONGODB
+                }        
+
+        dbResponse = db_emotion.users.insert_one(update_db) 
+        APP.logger.info("Database insertion succesfull!" + str(dbResponse.inserted_id)) 
 
 
 
 
-        return json.dumps(update)
+        return json.dumps(update_bot)
         # Response(
         #     response = json.dumps(update
         #         # {"message":"Emotion Stored","emotion :": "toDo",
@@ -284,7 +300,7 @@ def text_emotion_recognition():
     return "text works"
 
 
-#MONGODB
+#MONGODB query handler for the emotion from a user for a specif item
 # @APP.route("static/emotion/<user>/<item>/", methods = ["GET"])
 
 # def get_emotion_data(user, item): 
