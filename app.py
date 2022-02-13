@@ -16,7 +16,57 @@ from pydub import AudioSegment
 import logging
 
 
+def handle_audio(json_data): 
+# this function should detect the type of audio file the request sent, and decode it correctly from base64 into a PL wav format.
+    name = json_data["fileName"]
+    audio_64 = json_data["fileBody"]
+    fileType = name[-3:]
+    if  fileType == "mp3":
+        try: 
+            mp3_file_temp = open("temp.mp3", "wb")
+            audio_decoded = base64.b64decode(audio_64)
+            mp3_file_temp.write(audio_decoded)
+            # APP.logger.info("The final object type is: " + str(type(mp3_file_temp)))
+            # APP.logger.info("Until here everything should be good!! and the base 64 should be decoded into something")
+            filename_mp3 = "temp.mp3"
+            filename_wav = "newtemp.wav"
 
+            # converting mp3 to wav
+            src = filename_mp3
+            dst = filename_wav
+            sound = AudioSegment.from_mp3(src)
+            sound.export(dst, format = "wav")
+            # APP.logger.info("Correctly changed format from MP3 to WAV!, approaching next step")
+            # APP.logger.info(filename_wav)
+
+        except Exception as ex: 
+            pass
+            #APP.logger.info("Could not convert filetype " + file_type+ " to .wav")
+
+    if fileType == "m4a": 
+        try: 
+            m4a_file_temp = open("temp.m4a", "wb")
+            audio_decoded = base64.b64decode(audio_64)
+            m4a_file_temp.write(audio_decoded)
+            # APP.logger.info("The final object type is: " + str(type(mp3_file_temp)))
+            # APP.logger.info("Until here everything should be good!! and the base 64 should be decoded into something")
+            filename_m4a = "temp.m4a"
+            filename_wav = "newtemp.wav"
+
+            # converting mp3 to wav
+            src = filename_m4a
+            dst = filename_wav
+            sound = AudioSegment.from_file(filename_m4a, format = "m4a")
+            sound.export(dst, format = "wav")
+            # APP.logger.info("Correctly changed format from MP3 to WAV!, approaching next step")
+            # APP.logger.info(filename_wav)
+
+            
+
+        except Exception as ex:
+            print(ex) 
+
+    return filename_wav
 
 # logger_emo = logging.getLogger("deep_emotion_recognition")
 # logger_emo.setLevel(logging.CRITICAL)
@@ -107,9 +157,7 @@ APP.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 
 #given noSQL is not a relatinoal data-base system, there is really no need in initializing the users with an APPropiate /user function, instead the only methods avaliable will be /emotion/speech, and /emotion/text
-def handle_audio(file): 
 # this function should detect the type of audio file the request sent, and decode it correctly from base64 into a PL wav format.
-    pass
 
 @APP.route("/static/emotion/speech/", methods = ["POST"])
 
@@ -119,38 +167,42 @@ def speech_emotion_recognition():
         APP.logger.info("Extracting JSON data")
         try:
             json_data = request.get_json(force = True) #output is of type DICT
-            data_type = json_data["fileName"]
-            audio = json_data["fileBody"]
-            #course_id = json_data["course_id"]
-            #item_id = json_data["item_id"] #optional parameter 
-            user_id = json_data["user"]
-            time = datetime.datetime.now()
+        #     data_type = json_data["fileName"]
+        #     audio = json_data["fileBody"]
+        #     #course_id = json_data["course_id"]
+        #     #item_id = json_data["item_id"] #optional parameter 
+        #     user_id = json_data["user"]
+        #     time = datetime.datetime.now()
         except Exception as ex: 
-            APP.logger.info("Something went wrong extracting JSON data")
+        #     APP.logger.info("Something went wrong extracting JSON data")
             print(ex)    
 
 
 
-        #TODO: Implement audio_handling function to spare this code
-        APP.logger.info("The type fo the audio file extracted from the jason data is"+ str(type(audio)))
-        APP.logger.info("Creating a temporary mp3 file, the file will be stored in:")
-        APP.logger.info(str(os.getcwd()))
-        mp3_file = open("temp.mp3", "wb")
-        APP.logger.info("Decoding base64...")
-        decode_string = base64.b64decode(audio)
-        mp3_file.write(decode_string)
-        APP.logger.info("The final object type is: " + str(type(mp3_file)))
-        APP.logger.info("Until here everything should be good!! and the base 64 should be decoded into something")
-        filename = "temp.mp3"
-        filename_wav = "newtemp.wav"
+        # #TODO: Implement audio_handling function to spare this code
+        # APP.logger.info("The type fo the audio file extracted from the jason data is"+ str(type(audio)))
+        # APP.logger.info("Creating a temporary mp3 file, the file will be stored in:")
+        # APP.logger.info(str(os.getcwd()))
+        # mp3_file = open("temp.mp3", "wb")
+        # APP.logger.info("Decoding base64...")
+        # decode_string = base64.b64decode(audio)
+        # mp3_file.write(decode_string)
+        # APP.logger.info("The final object type is: " + str(type(mp3_file)))
+        # APP.logger.info("Until here everything should be good!! and the base 64 should be decoded into something")
+        # filename = "temp.mp3"
+        # filename_wav = "newtemp.wav"
 
-        # converting mp3 to wav
-        src = filename
-        dst = filename_wav
-        sound = AudioSegment.from_mp3(src)
-        sound.export(dst, format = "wav")
-        APP.logger.info("Correctly changed format from MP3 to WAV!, approaching next step")
-        APP.logger.info(filename_wav)
+        # # converting mp3 to wav
+        # src = filename
+        # dst = filename_wav
+        # sound = AudioSegment.from_mp3(src)
+        # sound.export(dst, format = "wav")
+        # APP.logger.info("Correctly changed format from MP3 to WAV!, approaching next step")
+        # APP.logger.info(filename_wav)
+
+        filename_wav = handle_audio(json_data)
+        text_result = ""
+
         try: 
             with sr.AudioFile(filename_wav) as source: 
                 audio_data = recognizer.record(source)
@@ -162,6 +214,9 @@ def speech_emotion_recognition():
             APP.logger.info("Something went wrong trying to perform speech to text")
             APP.logger.info(ex) 
 
+
+
+        
 
         # recognizing emotion
         try: 
@@ -181,7 +236,7 @@ def speech_emotion_recognition():
         #      "coeffs"],
         #       "valence": 1,
         #        "time": "today",
-                "text": (text_result+ "| predicted_emotion:" + str(emotion_array))
+                "text": (text_result + "| predicted_emotion:" + str(emotion_array))
                 }
 
         # dbResponse = db_emotion.users.insert_one(update) MONGODB
