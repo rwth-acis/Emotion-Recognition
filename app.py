@@ -6,24 +6,24 @@ import json
 import datetime
 import base64
 import os
+import sys
 #from bson.json_util import dumps
 #from utils import get_best_estimators
-#from emotion_recognition import EmotionRecognizer
-#from deep_emotion_recognition import DeepEmotionRecognizer
 import pyaudio
 import speech_recognition as sr
 from flask_swagger_ui import get_swaggerui_blueprint
 from pydub import AudioSegment
+import logging
 
-recognizer = sr.Recognizer()
 
-deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
-deepemo.train()
-print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
 
-# detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
-# detector.train()
-# print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
+
+# logger_emo = logging.getLogger("deep_emotion_recognition")
+# logger_emo.setLevel(logging.CRITICAL)
+# logger_emo.propagate = False
+
+#logging.getLogger("APP").setLevel(logging.INFO)
+
 
 
 
@@ -34,6 +34,27 @@ MONGO_HOST = "localhost"
 MONGO_PORT = 27017
 
 APP = Flask(__name__)
+recognizer = sr.Recognizer()
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(handler)
+
+
+try: 
+    APP.logger.info("Training the model")
+    deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
+    deepemo.train()
+    print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+except Exception as ex: 
+    APP.logger.info(ex)
+# detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
+# detector.train()
+# print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
+
+
 
 #SWAGGER initialization
 SWAGGER_URL = "/swagger"
@@ -147,7 +168,8 @@ def speech_emotion_recognition():
             emotion_array = deepemo.predict_proba(filename_wav)
 
         except Exception as ex:
-            APP.logger.info(ex)         
+            APP.logger.info(ex)
+     
 
         update = {#"user_id": user_id, 
         # "course_id":course_id,
@@ -159,7 +181,7 @@ def speech_emotion_recognition():
         #      "coeffs"],
         #       "valence": 1,
         #        "time": "today",
-                "text": text_result+ "| emotion" + str(emotion_array)
+                "text": (text_result+ "| predicted_emotion:" + str(emotion_array))
                 }
 
         # dbResponse = db_emotion.users.insert_one(update) MONGODB
