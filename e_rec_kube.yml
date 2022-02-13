@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: erec
+spec:
+  selector:
+    matchLabels:
+      app: erec
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: erec
+    spec:
+      containers:
+      - name: erec
+        image: juanstucker/e_rec:6
+        imagePullPolicy: Always
+        ports:
+        - name: erec
+          containerPort: 5001
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: erec-lb
+  labels:
+    app: erec
+spec:
+  type: NodePort
+  ports:
+  - port: 32111
+    targetPort: 5002
+    nodePort: 32111
+  selector:
+    app: erec

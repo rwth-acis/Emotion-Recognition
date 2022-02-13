@@ -1,0 +1,140 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "description": "juan stuecker",
+    "version": "1.0.0",
+    "title": "Emotion Recognition REST api",
+    "contact": {
+      "email": "juan.stuecker@rwth-aachen.de"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers":[
+    {
+      "url": "/"
+    }
+
+  ],
+  "tags":[
+    {
+      "name": "Speech emotion recognition", 
+      "description": "API for recognizing emotion from speech and text"
+
+    }
+  ], 
+  "paths": {
+    "/emotion/speech":{
+      "consumes":["application/json"],
+      "produces":["application/json"],
+      "parameters": [
+        {
+          "name": "body", 
+          "in": "body", 
+          "schema":{
+            "type": "application/json", 
+            "required":["firstName"],
+            "properties":{
+              "firstName":{"type":"string"}
+            }, 
+            "example": {"firstName":"juan"}
+
+          }, 
+          "content":"application/json"
+        }
+      ],
+      "post":{
+        "tags":[
+          "Speech emotion recognition"
+        ], 
+        "summary": "Returns emotion detected, transcript, and metadata", 
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }, 
+        "operationId": "speech_emotion_recognition"
+      }
+    },
+    "/test":{
+      "consumes":["application/json"],
+      "produces":["application/json"],
+      "parameters": [
+        {
+          "name": "body", 
+          "in": "body", 
+          "schema":{
+            "type": "application/json", 
+            "required":["firstName"],
+            "properties":{
+              "firstName":{"type":"string"}
+            }, 
+            "example": {"firstName":"juan"}
+
+          }, 
+          "content":"application/json"
+        }
+      ],
+      "post":{
+        "tags":[
+          "Speech emotion recognition"
+        ], 
+        "summary": "Returns emotion detected, transcript, and metadata", 
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }, 
+        "operationId": "test_json"
+      }
+    } 
+
+
+  }, 
+  "components": {
+    "schemas": {
+      "id": {
+        "properties": {
+          "uuid": {
+            "type": "string"
+          }
+        }
+      },
+      "speechPostbody": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "format": "string"
+          },
+          "emotion": {
+            "type": "string",
+            "format": "email"
+          }, 
+          "user":{
+            "type": "string", 
+            "format":"number"
+          }, 
+          "course_id":{
+            "type": "string", 
+            "format":"number"
+          }, 
+          "text":{
+            "type": "string",
+            "format":"string"
+          }
+        }
+      },
+      "bookRequests": {
+        "type": "object",
+        "properties": {
+          "bookRequest": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  }
+}
