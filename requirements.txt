@@ -1,0 +1,17 @@
+pyaudio
+Flask
+flask-swagger-ui
+SpeechRecognition
+pydub
+librosa==0.6.3
+numpy
+pandas
+soundfile==0.9.0
+wave
+sklearn
+tqdm==4.28.1
+matplotlib==2.2.3
+pyaudio==0.2.11
+tensorflow==2.5.2
+numba==0.48
+pymongo
