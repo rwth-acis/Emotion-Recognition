@@ -133,3 +133,6 @@ dmypy.json
 .mp3
 .aac
 .m4a
+
+#training data
+data/
