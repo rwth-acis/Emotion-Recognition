@@ -3,7 +3,7 @@ import os
 import sys
 stderr = sys.stderr
 sys.stderr = open(os.devnull, 'w')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
 
 from tensorflow.keras.layers import LSTM, GRU, Dense, Activation, LeakyReLU, Dropout

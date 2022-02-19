@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# audio stuff
+.wev
+.mp3
+.aac
+.m4a
