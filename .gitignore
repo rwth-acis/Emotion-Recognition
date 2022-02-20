@@ -136,3 +136,9 @@ dmypy.json
 
 #training data
 data/
+
+#yml build files
+.yml
+
+#jupyter test notebooks
+.ipynb
