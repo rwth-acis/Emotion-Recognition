@@ -14,7 +14,7 @@ A REST api which performs on request Speech and Text emotion recognition. Works 
 <!-- ## Screenshots
 
 ![Home Page](/screenshots/1.png "Home Page")
-
+cd ..
 ![](/screenshots/2.png)
 
 ![](/screenshots/3.png)  -->
@@ -23,7 +23,14 @@ A REST api which performs on request Speech and Text emotion recognition. Works 
 
 The Service expects RESTFUL Get and Post requests, a futher overview if possible by looking at the SWAGGER documentation:
 
-### `static/emotion/speech" : "POST"`,
+
+
+
+### `static/emotion/speech" : "POST"`
+
+```
+GET <service-address>/mentoring/<tutor-sub>/courseList
+```
 
 The application expects a JSON file with the audio file in base64 format in with the tag "fileBody", aswell as a a user identifier under the tag "userid", in order to properly store the entries on the database.
 The response is JSON file with the predicted emotion, and speech to text result.
