@@ -129,16 +129,18 @@ dmypy.json
 .pyre/
 
 # audio stuff
-.wev
-.mp3
-.aac
-.m4a
+temp.wav
+temp.mp3
+temp.aac
+temp.m4a
+wavtemp_c.wav
 
 #training data
 data/
 
 #yml build files
-.yml
+mongo_pv.yml
+e_rec_kube.yml
 
 #jupyter test notebooks
 .ipynb
