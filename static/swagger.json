@@ -58,6 +58,38 @@
         "operationId": "speech_emotion_recognition"
       }
     },
+    "/emotion/text":{
+      "consumes":["application/json"],
+      "produces":["application/json"],
+      "parameters": [
+        {
+          "name": "body", 
+          "in": "body", 
+          "schema":{
+            "type": "application/json", 
+            "required":["firstName"],
+            "properties":{
+              "firstName":{"type":"string"}
+            }, 
+            "example": {"firstName":"juan"}
+
+          }, 
+          "content":"application/json"
+        }
+      ],
+      "post":{
+        "tags":[
+          "text emotion recognition/sentiment analysis"
+        ], 
+        "summary": "Returns emotion detected and metadata", 
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }, 
+        "operationId": "text_emotion_recognition"
+      }
+    },
     "/test":{
       "consumes":["application/json"],
       "produces":["application/json"],

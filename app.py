@@ -20,7 +20,7 @@ import logging
 # emotion_array = ""
 # text_result = ""
 
-LANGUAGE = "en" #for the speech to text engine
+LANGUAGE = "en-US" #for the speech to text engine
 MONGO_HOST = "137.226.232.75"
 MONGO_PORT = 32112
 
@@ -52,15 +52,26 @@ def handle_audio(json_data):
             filename = "temp.mp3"
             filename_export = "wavtemp.wav"
 
-            file_temp = open(filename_export, "wb")
+            file_temp = open(filename, "wb")
             file_temp.write(audio_decoded)
+            APP.logger.info("Until now no problem")
+
 
             # converting mp3 to wav
             src = filename
             dst = filename_export
-            sound = AudioSegment.from_mp3(src)
+            sound = AudioSegment.from_mp3(filename)
             sound = sound.split_to_mono()[0]
-            sound.export(dst, format =  "wav")
+            # try: 
+            #     sound = AudioSegment.from_file(src, format ="mp3")
+            #     sound = sound.split_to_mono()[0]
+            #     APP.logger.info("SUCESS: audio decoding")
+            # except: 
+            #     APP.logger.info("Attempting with mp4")
+            #     sound = AudioSegment.from_file(src, format = "mp4")
+            #     APP.logger.info("Changed to mp4 format")
+            sound.export(dst, format = "wav")
+
 
         except Exception as ex: 
             APP.logger.info(ex)
@@ -149,13 +160,14 @@ handler = logging.StreamHandler(sys.stdout)
 logger.addHandler(handler)
 
 
-#try: 
-APP.logger.info("Training the model")
-deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
-deepemo.train()
-print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
-#except Exception as ex: 
-#APP.logger.info(ex)
+try: 
+    APP.logger.info("Training the model")
+    deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
+    deepemo.train()
+    print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+
+except Exception as ex: 
+    APP.logger.info(ex)
 # detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
 # detector.train()
 # print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
@@ -232,7 +244,7 @@ def speech_emotion_recognition():
         try: 
             with sr.AudioFile(filename_wav) as source: 
                 audio_data = recognizer.record(source)
-                text_result = recognizer.recognize_google(audio_data, language = LANGUAGE)
+                text_result = recognizer.recognize_sphinx(audio_data, language = LANGUAGE)
                 APP.logger.info("****************The SPEECH TO TEXT result is *******************")
                 APP.logger.info(text_result)
         except Exception as ex:
@@ -250,7 +262,22 @@ def speech_emotion_recognition():
 
         except Exception as ex:
             APP.logger.info(ex)
-     
+
+
+        try: 
+            if os.path.exists(str(filename_wav)):
+                APP.logger.info("Attemting to remove file "+ str(filename_wav)+ " now")
+                os.remove(filename_wav)
+                APP.logger.info("SUCCESS, temp file deleted")
+            else: 
+                APP.logger.info("The file does not exist in the directory" )  
+
+        except Exception as ex: 
+            APP.logger.info("Could not remove the file becasue :")
+            APP.logger.info(ex)    
+
+            
+
 
         update_bot = {#"user_id": user_id, 
         # "course_id":course_id,
@@ -321,7 +348,7 @@ def detele_audio_file(fileName):
 
 @APP.route("/static/emotion/text/", methods = ["POST"])
 def text_emotion_recognition():
-    return "text works"
+    return "This function is still not implemented in this version of the service, but will be in the future"
 
 
 #MONGODB query handler for the emotion from a user for a specif item
@@ -346,6 +373,10 @@ def get_emotion_data(user, item):
     except Exception as ex: 
         APP.logger.info("Coould not query data: ")
         APP.logger.info(ex)    
+
+
+
+
 
 @APP.route("/static/test/", methods = ["POST"])
 def test_json(): 
