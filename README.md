@@ -4,6 +4,7 @@ Is uses a known Github repository to train and evaluate a model which performs s
 - Ravdess
 - EmoDB 
 - TESS
+
 The service also provides automatic transcription for the english language. The results are given in prediction probabilites.
 
 <h1 align="center"><Emotion Recognition API></h1>
@@ -22,34 +23,40 @@ cd ..
 
 ## Available Functions
 
-The Service expects RESTFUL Get and Post requests, a futher overview if possible by looking at the SWAGGER documentation:
+The Service expects RESTFUL Get and Post requests, a futher overview if possible by looking at the SWAGGER documentation, which is avaliable under 
 
+```
+POST <service-address>/static/swagger.json
+```
 
 
 
 <!-- ### `static/emotion/speech" : "POST"` -->
+The application expects a JSON file with the audio file in base64 format in with the tag "fileBody", aswell as a a user identifier under the tag "userid", in order to properly store the entries on the database.
+The response is JSON file with the predicted emotion, and speech to text result.
 
 ```
 POST <service-address>/static/emotion/speech
 ```
 
-The application expects a JSON file with the audio file in base64 format in with the tag "fileBody", aswell as a a user identifier under the tag "userid", in order to properly store the entries on the database.
-The response is JSON file with the predicted emotion, and speech to text result.
+
 
 <!-- ### `"static/emotion/text": "POST"` -->
+The application expects a JSON file with the text under the tag "text", and a user identifier under the tag "userid".
+The response is a JSON file with the predicted emotion. 
 ```
 POST <service-address>/static/emotion/text
 ```
 
-The application expects a JSON file with the text under the tag "text", and a user identifier under the tag "userid".
-The response is a JSON file with the predicted emotion. 
+
 
 <!-- ### `"/static/test/": "POST"` -->
+A connection test. It expects a JSON file, the respond should be the same JSON file
 ```
 POST <service-address>/static/test
 ```
 
-A connection test. It expects a JSON file, the respond should be the same JSON file
+
 
 
 
