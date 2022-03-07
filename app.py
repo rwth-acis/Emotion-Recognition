@@ -21,8 +21,8 @@ import logging
 # text_result = ""
 
 LANGUAGE = "en-US" #for the speech to text engine
-MONGO_HOST = "localhost" #"137.226.232.75"
-MONGO_PORT = 27017 #32112
+MONGO_HOST = "137.226.232.75"
+MONGO_PORT = 32112
 
 
 APP = Flask(__name__)
