@@ -21,8 +21,8 @@ import logging
 # text_result = ""
 
 LANGUAGE = "en-US" #for the speech to text engine
-MONGO_HOST = "137.226.232.75"
-MONGO_PORT = 32112
+MONGO_HOST = "localhost" #"137.226.232.75"
+MONGO_PORT = 27017 #32112
 
 
 APP = Flask(__name__)
@@ -401,26 +401,34 @@ def test_json():
         print(ex)
 
 
-@APP.route("/static/getLowest", methods = ["GET"])
+@APP.route("/static/getLowest/", methods = ["POST"])
 def getLowest(): 
     #todo: incorporate the k to get the lowest k values, right now the method returns all matching documents
     try:
         json_data = request.get_json(force = True) #output is of type DICT
         if (request.data): 
-            user = json_data["user"]
-            num = json_data["numberOfElements"]
+            try:
+                user = json_data["userid"]
+                num = json_data["numOfSuggestions"]
+                courseid = json_data["courseid"]
+            except Exception as ex: 
+                APP.logger.info("Variables not in JSON")  
+                APP.logger.info(ex)  
         try: 
 
             #this queries any document of the user, where the valence is greater than 0,  meaning, all documents where there is an entry on valence of emotion.
-            query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } )
+            #todo: add some complete data to the database, so i can include the courseid and test run the suggestion feature
+            query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
+            
 
 
             query_list = list(query) # this is of type DICT, so searching should be easy
+            
 
             query_json = {}
 
             for i in range(len(query_list)): 
-                query_json["document" + str(i)] = str(query_list[i])
+                query_json["document " + str(i)] = str(query_list[i])
 
             return Response(
             response = json.dumps(query_json), 
