@@ -7,22 +7,22 @@ import datetime
 import base64
 import os
 import sys
-#from bson.json_util import dumps
+from bson.json_util import dumps
 #from utils import get_best_estimators
 import pyaudio
 import speech_recognition as sr
 from flask_swagger_ui import get_swaggerui_blueprint
 from pydub import AudioSegment
 import logging
+import numpy
+import requests
 # global variables referenced in the functions
-# filename_wav = ""
-# filename_mp3 = ""
-# emotion_array = ""
-# text_result = ""
+
+#todo: make all url, and changing variables to env variables on startup
 
 LANGUAGE = "en-US" #for the speech to text engine
-MONGO_HOST = "localhost" #"137.226.232.75"
-MONGO_PORT = 27017 #32112
+MONGO_HOST =  "137.226.232.75" # "localhost"
+MONGO_PORT =  32112  #27017
 
 
 APP = Flask(__name__)
@@ -140,6 +140,20 @@ def handle_audio(json_data):
 
     return filename_export
 
+
+def e_valence(e_array):
+    #weights can be change in case prediction of certain emotion is not correctly distributed in the model
+    weights = [-1,-1,2,1,1]
+    valence = numpy.dot(weights, list(e_array.values()))
+    return valence
+
+def get_intent(text:str):
+    #gets the speech to text message from the audio file and sends it to the rasa server to perform intent recognition
+    params = {'text': text}
+    request = requests.post("http://localhost:5005/model/parse", json.dumps(params))
+    return request.json()["intent"]["name"]
+
+
 #Changing log level for the emotion recognition module
 # logger_emo = logging.getLogger("deep_emotion_recognition")
 # logger_emo.setLevel(logging.CRITICAL)
@@ -196,6 +210,7 @@ except Exception as ex:
 #given noSQL is not a relatinoal data-base system, there is really no need in initializing the users with an APPropiate /user function, instead the only methods avaliable will be /emotion/speech, and /emotion/text
 # this function should detect the type of audio file the request sent, and decode it correctly from base64 into a PL wav format.
 
+#todo: Establish a connection with the rasa server in order to get a correct prediction of which suggestion function the users wants based on the audio sent from the bot!
 @APP.route("/static/emotion/speech/", methods = ["POST"])
 
 def speech_emotion_recognition(): 
@@ -215,29 +230,6 @@ def speech_emotion_recognition():
             APP.logger.info(ex)    
 
 
-
-        # #TODO: Implement audio_handling function to spare this code --- 
-        # OLD code to transform base 64 -> audio -> wav, not with function handle_audio(json)
-        # APP.logger.info("The type fo the audio file extracted from the jason data is"+ str(type(audio)))
-        # APP.logger.info("Creating a temporary mp3 file, the file will be stored in:")
-        # APP.logger.info(str(os.getcwd()))
-        # mp3_file = open("temp.mp3", "wb")
-        # APP.logger.info("Decoding base64...")
-        # decode_string = base64.b64decode(audio)
-        # mp3_file.write(decode_string)
-        # APP.logger.info("The final object type is: " + str(type(mp3_file)))
-        # APP.logger.info("Until here everything should be good!! and the base 64 should be decoded into something")
-        # filename = "temp.mp3"
-        # filename_wav = "newtemp.wav"
-
-        # # converting mp3 to wav
-        # src = filename
-        # dst = filename_wav
-        # sound = AudioSegment.from_mp3(src)
-        # sound.export(dst, format = "wav")
-        # APP.logger.info("Correctly changed format from MP3 to WAV!, approaching next step")
-        # APP.logger.info(filename_wav)
-
         filename_wav = handle_audio(json_data)
         # speech to text
         text_result = "Not found"
@@ -255,10 +247,12 @@ def speech_emotion_recognition():
 
         
         emotion_array = ""
-        # recognizing emotion
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
+            APP.logger.info(type(emotion_array))
             APP.logger.info("Predicted emotion succesfully")
+            valence = e_valence(emotion_array)
+            APP.logger.info("Valence was calculated correctly")
 
         except Exception as ex:
             APP.logger.info(ex)
@@ -275,6 +269,10 @@ def speech_emotion_recognition():
         except Exception as ex: 
             APP.logger.info("Could not remove the file becasue :")
             APP.logger.info(ex)    
+
+        APP.logger.info("Performing intent detection by rasa server")
+        intent = "no intent found"
+        intent = get_intent(text_result)
 
             
 
@@ -299,8 +297,9 @@ def speech_emotion_recognition():
         #    "emotion",
         #     "activation",
         #      "coeffs"],
-        #       "valence": 1,
-                "time": time,
+               "valence": valence,
+        #       "time": time,
+                "intent": str(intent),
                 "text": text_result, 
                 "emotion": str(emotion_array)
 
@@ -312,7 +311,7 @@ def speech_emotion_recognition():
 
 
 
-        return json.dumps(update_bot)
+        return dumps(update_db)
         # Response(
         #     response = json.dumps(update
         #         # {"message":"Emotion Stored","emotion :": "toDo",
@@ -351,7 +350,6 @@ def text_emotion_recognition():
     return "This function is still not implemented in this version of the service, but will be in the future"
 
 
-#MONGODB query handler for the emotion from a user for a specif item
 @APP.route("/static/emotion/<user>/<item>/", methods = ["GET"])
 
 def get_emotion_data(user, item): 
@@ -403,7 +401,6 @@ def test_json():
 
 @APP.route("/static/getLowest/", methods = ["POST"])
 def getLowest(): 
-    #todo: incorporate the k to get the lowest k values, right now the method returns all matching documents
     try:
         json_data = request.get_json(force = True) #output is of type DICT
         if (request.data): 
@@ -438,29 +435,9 @@ def getLowest():
         except Exception as ex: 
             APP.logger.info("Coould not query data: ")
             APP.logger.info(ex)    
-        
-
-
-
-
-
-
-
-
 
     except Exception as ex:
         print(ex)
-
-
-
-
-
-
-
-
-
-
-
 
 
 
