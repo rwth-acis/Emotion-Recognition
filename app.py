@@ -2,7 +2,6 @@ from deep_emotion_recognition import DeepEmotionRecognizer
 from flask import Flask, Response, request
 import pymongo
 import json
-#from bson.objectid import ObjectId
 import datetime
 import base64
 import os
@@ -16,18 +15,43 @@ from pydub import AudioSegment
 import logging
 import numpy
 import requests
-# global variables referenced in the functions
+import configparser
 
 #todo: make all url, and changing variables to env variables on startup
 
-LANGUAGE = "en-US" #for the speech to text engine
-MONGO_HOST =  "137.226.232.75" # "localhost"
-MONGO_PORT =  32112  #27017
+# LANGUAGE = "en-US" #for the speech to text engine
+# MONGO_HOST =  "137.226.232.75" # "localhost"
+# MONGO_PORT =  32112  #27017
+# RASA_URL = "rasa-nlu.ba-stuecker:5005"
+# PORT = 5002
+try:
+    print("good here?")
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+
+    LANGUAGE = config.get("DEFAULT", "LANGUAGE")#"en-US" #for the speech to text engine
+    MONGO_HOST =  "137.226.232.75" # "localhost"
+    MONGO_PORT =  32112  #27017
+    # MONGO_PORT = config.get("MONGO_PORT")
+    RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
+    print("And now?")
+    PORT = config.get("DEFAULT","PORT")
+except Exception as ex:
+    print("AF")
+    print(ex)
+else: 
+    LANGUAGE = LANGUAGE
+    MONGO_HOST = MONGO_HOST
+    MONGO_PORT = MONGO_PORT
+    RASA_URL = RASA_URL
+    PORT = PORT
+    
+
 
 
 APP = Flask(__name__)
 
-#SWAGGER initialization
+#SWAGGER initializations
 SWAGGER_URL = "/swagger"
 API_URL = "/static/swagger.json"
 SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
@@ -150,17 +174,9 @@ def e_valence(e_array):
 def get_intent(text:str):
     #gets the speech to text message from the audio file and sends it to the rasa server to perform intent recognition
     params = {'text': text}
-    request = requests.post("http://localhost:5005/model/parse", json.dumps(params))
+    request = requests.post(RASA_URL, json.dumps(params))
     return request.json()["intent"]["name"]
 
-
-#Changing log level for the emotion recognition module
-# logger_emo = logging.getLogger("deep_emotion_recognition")
-# logger_emo.setLevel(logging.CRITICAL)
-# logger_emo.propagate = False
-
-#Change the log level of this app
-#logging.getLogger("APP").setLevel(logging.INFO)
 
 
 
@@ -179,12 +195,14 @@ try:
     deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
     deepemo.train()
     print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+    #Alternative recognizer, uses classification methods instead of FNNs
+    # detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
+    # detector.train()
+    # print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
+
 
 except Exception as ex: 
     APP.logger.info(ex)
-# detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
-# detector.train()
-# print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
 
 
 
@@ -226,7 +244,6 @@ def speech_emotion_recognition():
             time = datetime.datetime.now()
       
         except Exception as ex: 
-        #     APP.logger.info("Something went wrong extracting JSON data")
             APP.logger.info(ex)    
 
 
@@ -417,8 +434,6 @@ def getLowest():
             #todo: add some complete data to the database, so i can include the courseid and test run the suggestion feature
             query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
             
-
-
             query_list = list(query) # this is of type DICT, so searching should be easy
             
 
@@ -442,5 +457,5 @@ def getLowest():
 
 
 if __name__ == "__main__":
-    APP.run(host = '0.0.0.0', port = 5002, debug = True)
+    APP.run(host = '0.0.0.0', port = PORT, debug = True)
 
