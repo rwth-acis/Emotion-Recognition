@@ -33,7 +33,8 @@ try:
     MONGO_HOST =  "137.226.232.75" # "localhost"
     MONGO_PORT =  32112  #27017
     # MONGO_PORT = config.get("MONGO_PORT")
-    RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
+    #RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
+    RASA_URL = config.get("DEFAULT","RASA")
     print("And now?")
     PORT = config.get("DEFAULT","PORT")
 except Exception as ex:

@@ -1,3 +1,4 @@
+
 import configparser
 import argparse
 
@@ -16,11 +17,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--lang", type=str, help="Language for the speech to text engine")
 parser.add_argument("--mongodb", help="MongoDB's server address")
 parser.add_argument("--p", help="Port for this application")
+parser.add_argument("--rasa", help="Adress to the rasa NLU server")
 args = parser.parse_args()
 
 config = configparser.ConfigParser()
 config["DEFAULT"] = {"LANGUAGE": args.lang, "MONGO_PORT": args.mongodb,
-"PORT":args.p}
+"PORT":args.p, "RASA":args.rasa}
 
 f = open("config.ini", mode="w", encoding="utf-8")
 config.write(f)
