@@ -7,45 +7,45 @@ import base64
 import os
 import sys
 from bson.json_util import dumps
-#from utils import get_best_estimators
-import pyaudio
 import speech_recognition as sr
 from flask_swagger_ui import get_swaggerui_blueprint
 from pydub import AudioSegment
 import logging
 import numpy
 import requests
-import configparser
+#import configparser
 
 #todo: make all url, and changing variables to env variables on startup
 
-# LANGUAGE = "en-US" #for the speech to text engine
-# MONGO_HOST =  "137.226.232.75" # "localhost"
-# MONGO_PORT =  32112  #27017
-# RASA_URL = "rasa-nlu.ba-stuecker:5005"
-# PORT = 5002
-try:
-    print("good here?")
-    config = configparser.ConfigParser()
-    config.read("config.ini")
+LANGUAGE = "en-US" #for the speech to text engine
+MONGO_HOST = "localhost"#"137.226.232.75" #"localhost"
+MONGO_PORT = 27017#32112 # 27017
+RASA_URL =  "http://localhost:5005/model/parse" #"http://rasa-nlu.ba-stuecker:5005/model/parse" #"http://localhost:5005/model/parse" #
+RASA_URL_2 = "http://rasa-nlu.svc.cluster.local:5005/model/parse"
+RASA_URL_3 = "http//rasa_nlu:5005/model/parse"
+PORT = 5002
+# try:
+#     print("good here?")
+#     config = configparser.ConfigParser()
+#     config.read("config.ini")
 
-    LANGUAGE = config.get("DEFAULT", "LANGUAGE")#"en-US" #for the speech to text engine
-    MONGO_HOST =  "137.226.232.75" # "localhost"
-    MONGO_PORT =  32112  #27017
-    # MONGO_PORT = config.get("MONGO_PORT")
-    #RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
-    RASA_URL = config.get("DEFAULT","RASA")
-    print("And now?")
-    PORT = config.get("DEFAULT","PORT")
-except Exception as ex:
-    print("AF")
-    print(ex)
-else: 
-    LANGUAGE = LANGUAGE
-    MONGO_HOST = MONGO_HOST
-    MONGO_PORT = MONGO_PORT
-    RASA_URL = RASA_URL
-    PORT = PORT
+#     LANGUAGE = config.get("DEFAULT", "LANGUAGE")#"en-US" #for the speech to text engine
+#     MONGO_HOST =  "137.226.232.75" # "localhost"
+#     MONGO_PORT =  32112  #27017
+#     # MONGO_PORT = config.get("MONGO_PORT")
+#     #RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
+#     RASA_URL = config.get("DEFAULT","RASA")
+#     print("And now?")
+#     PORT = config.get("DEFAULT","PORT")
+# except Exception as ex:
+#     print("AF")
+#     print(ex)
+# else: 
+#     LANGUAGE = LANGUAGE
+#     MONGO_HOST = MONGO_HOST
+#     MONGO_PORT = MONGO_PORT
+#     RASA_URL = RASA_URL
+#     PORT = PORT
     
 
 
@@ -65,7 +65,15 @@ SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
 APP.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 def handle_audio(json_data): 
-# this function should detect the type of audio file the request sent, and decode it correctly from base64 into a PL wav format.
+    """Interacte with actions
+
+    Args:
+        json_data  (json): a json string, contains an audio file in base64 format
+    Returns:
+        wav: exports the decoded data into wav audio format in the file temp.wav
+
+    """
+
     name = json_data["fileName"]
     audio_64 = json_data["fileBody"]
     fileType = name[-3:]
@@ -165,26 +173,36 @@ def handle_audio(json_data):
 
     return filename_export
 
-
 def e_valence(e_array):
-    #weights can be change in case prediction of certain emotion is not correctly distributed in the model
-    weights = [-1,-1,2,1,1]
+    """
+    Args: activation array with 5 emotions
+
+    Returns: a coefficient result of the product of the cross product with some weights which are adjustable
+
+    """
+
+    weights = [-0.5,-1,2,1,1]
     valence = numpy.dot(weights, list(e_array.values()))
     return valence
 
 def get_intent(text:str):
-    #gets the speech to text message from the audio file and sends it to the rasa server to perform intent recognition
+
     params = {'text': text}
-    request = requests.post(RASA_URL, json.dumps(params))
+    try:
+        request = requests.post(RASA_URL, json.dumps(params))
+    except:
+        APP.logger.info("1 rasa fail")
     return request.json()["intent"]["name"]
 
 
-
-
-#Speech to text recognizer
+"""
+    Speech to text function
+"""
 recognizer = sr.Recognizer()
 
-#Changin log configuration to show logs from flask
+"""
+    Configuration of Logs for the flask app
+"""
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler(sys.stdout)
@@ -192,54 +210,70 @@ logger.addHandler(handler)
 
 
 try: 
+    """
+
+        deepemo and detector are the 2 possible prediction models ,they take an array of possible emotions as arguments, and are train with the .train() method.
+
+        In order to change either one of the models, one needs to be outcommented, and the other activated
+
+
+    """
     APP.logger.info("Training the model")
     deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
     deepemo.train()
     print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+
     #Alternative recognizer, uses classification methods instead of FNNs
     # detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
     # detector.train()
     # print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
-
 
 except Exception as ex: 
     APP.logger.info(ex)
 
 
 
-#Connection to the Databse
 try: 
-    APP.logger.info("Trying to connect with the database...")
+    APP.logger.info("Database: Attempting connection")
     mongo = pymongo.MongoClient(
          host=MONGO_HOST, 
          port= MONGO_PORT, 
          serverSelectionTimeoutMS = 10000
          )
-    APP.logger.info("Checking connection with the server")
-    mongo.server_info()  #triggers the exception if no connection
+    APP.logger.info("Checking connection with the DB")
+    mongo.server_info() 
     db = mongo.course
     db_emotion = mongo.emotion
-    APP.logger.info("SUCCESS: connecting with the DB!")
+    db_quizes = mongo.quizes
+    APP.logger.info("Database: Success in connecting!")
 
 except Exception as ex:    
-    APP.logger.info("ERROR: Cannot connect to the databse") 
+    APP.logger.info("Database: Error, could not connect") 
     APP.logger.info(ex)
 
 
-#given noSQL is not a relatinoal data-base system, there is really no need in initializing the users with an APPropiate /user function, instead the only methods avaliable will be /emotion/speech, and /emotion/text
-# this function should detect the type of audio file the request sent, and decode it correctly from base64 into a PL wav format.
 
-#todo: Establish a connection with the rasa server in order to get a correct prediction of which suggestion function the users wants based on the audio sent from the bot!
+
+
+"""
+    Speech Emotion Recognition Function
+
+    Args: Json file (string) containing: 
+        user_mail: user email used to identify the user, this should match the email in the course registered in the Mentoring Cockpit service
+        fileName: name of the audio file with correct extention: either .mp3, .mp4, .aac
+        fileBody: base64 String of the audio coded
+"""
 @APP.route("/static/emotion/speech/", methods = ["POST"])
 
 def speech_emotion_recognition(): 
 
     try: 
         APP.logger.info("Extracting JSON data")
+        # Extracting variables from JSON
         try:
             json_data = request.get_json(force = True) #output is of type DICT
         #     data_type = json_data["fileName"]
-        #     #course_id = json_data["course_id"]
+        #    course_id = json_data["course_id"]
         #     #item_id = json_data["item_id"] #optional parameter 
             user_mail = json_data["email"]
             time = datetime.datetime.now()
@@ -247,53 +281,62 @@ def speech_emotion_recognition():
         except Exception as ex: 
             APP.logger.info(ex)    
 
-
+        # Decoding base64 audio string
         filename_wav = handle_audio(json_data)
-        # speech to text
+
+        # Performing speech to text on the resulting audio file
         text_result = "Not found"
         try: 
             with sr.AudioFile(filename_wav) as source: 
                 audio_data = recognizer.record(source)
                 text_result = recognizer.recognize_sphinx(audio_data, language = LANGUAGE)
-                APP.logger.info("****************The SPEECH TO TEXT result is *******************")
+                APP.logger.info("Speech to text: The result from the speech to text recognition is: ")
                 APP.logger.info(text_result)
         except Exception as ex:
             APP.logger.info(ex)
-            APP.logger.info("Something went wrong trying to perform speech to text")
+            APP.logger.info("Something went wrong trying performing speech to text")
 
 
 
-        
+        # Predicting emotion on the resulting audio file
+
         emotion_array = ""
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
-            APP.logger.info(type(emotion_array))
-            APP.logger.info("Predicted emotion succesfully")
+            # Debug: APP.logger.info(type(emotion_array))
+            APP.logger.info("Emotion Recognition: Predicted emotion succesfully: "+ emotion_array)
             valence = e_valence(emotion_array)
-            APP.logger.info("Valence was calculated correctly")
+            APP.logger.info("Emotion Recognition: Valence was calculated correctly: "+ valence)
 
         except Exception as ex:
             APP.logger.info(ex)
 
-
+        # Removing temporary files
         try: 
             if os.path.exists(str(filename_wav)):
-                APP.logger.info("Attemting to remove file "+ str(filename_wav)+ " now")
+                APP.logger.info("Temp removal: attemting to remove file "+ str(filename_wav))
                 os.remove(filename_wav)
-                APP.logger.info("SUCCESS, temp file deleted")
+                APP.logger.info("Temp removal: temp file deleted")
             else: 
-                APP.logger.info("The file does not exist in the directory" )  
+                APP.logger.info("Error while trying to remove temp file: The file does not exist in the directory" )  
 
         except Exception as ex: 
             APP.logger.info("Could not remove the file becasue :")
             APP.logger.info(ex)    
+        
+        #Intention detection with Rasa
 
-        APP.logger.info("Performing intent detection by rasa server")
+        APP.logger.info("NLU: Performing intent detection by rasa server")
         intent = "no intent found"
         intent = get_intent(text_result)
+        APP.logger.info("NLI: Intent detected: "+ text_result)
 
             
+        """
+            The update_bot dictionary was use to directy communication with the bot, there for the text: ____ format
 
+            The update_db dictionary is used to update the data in the Mongo Database
+        """
 
         update_bot = {#"user_id": user_id, 
         # "course_id":course_id,
@@ -307,7 +350,7 @@ def speech_emotion_recognition():
         #        "time": "today",
                 "text": ("predicted text:" + text_result + " | predicted_emotion:" + str(emotion_array))
                 }
-        update_db = {"user_id": user_mail, 
+        update_db = {"email": user_mail, 
         # "course_id":course_id,
         #  "item_id": item_id,
         #   "audio_type": data_type,
@@ -316,7 +359,7 @@ def speech_emotion_recognition():
         #     "activation",
         #      "coeffs"],
                "valence": valence,
-        #       "time": time,
+               "numOfSuggestions": 2,
                 "intent": str(intent),
                 "text": text_result, 
                 "emotion": str(emotion_array)
@@ -324,11 +367,27 @@ def speech_emotion_recognition():
                 }        
 
         dbResponse = db_emotion.users.insert_one(update_db) 
-        APP.logger.info("Database insertion succesfull!" + str(dbResponse.inserted_id)) 
+        APP.logger.info("Database: Insertion succesfull!: ID" + str(dbResponse.inserted_id)) 
 
 
 
+        """
+            Response to the Mentoring Cockpit service, or any other service making the requests: 
 
+            Args: 
+                email (string): user email used to identify the student in the service
+
+                valence (double): result of the get_valence function, number result of the cross product of the activation array from the emtoion detection and some adjustable weights.
+
+                numOfSuggestions (int): number of suggestions asked by the user
+
+                intent (string): intent result from the NLU
+
+                text (string): speech to text result 
+
+                emotion (string): activation array from the emotion recognition service
+
+        """
         return dumps(update_db)
         # Response(
         #     response = json.dumps(update
@@ -345,103 +404,119 @@ def speech_emotion_recognition():
     except Exception as ex:
         APP.logger.info(ex) 
 
+# Previous version of a function to delete spefici files in the contaienr
+# @APP.route("/static/emotion/speech/<fileName>/", methods = ["DELETE"])
+# def detele_audio_file(fileName): 
+#     try: 
+#         if os.path.exists(str(fileName)+".wav"):
+#             print("Trying to remove the file "+ str(fileName)+ " now")
+#             os.remove(fileName+".wav")
+#             return "SUCESS: file deteled"
+#         else: 
+#             print("The file does not exist in the directory" )  
 
-@APP.route("/static/emotion/speech/<fileName>/", methods = ["DELETE"])
-def detele_audio_file(fileName): 
-    try: 
-        if os.path.exists(str(fileName)+".wav"):
-            print("Trying to remove the file "+ str(fileName)+ " now")
-            os.remove(fileName+".wav")
-            return "SUCESS: file deteled"
-        else: 
-            print("The file does not exist in the directory" )  
-
-    except Exception as ex: 
-        print("Could not remove the file becasue :")
-        print(ex)
-
-
+#     except Exception as ex: 
+#         print("Could not remove the file becasue :")
+#         print(ex)
 
 
+
+"""
+    Text emotion recognition: 
+    Args: 
+        Text (string): Incoming text
+
+    Result: 
+        Emotion (string): Emotion predicted from the text
+"""
 @APP.route("/static/emotion/text/", methods = ["POST"])
 def text_emotion_recognition():
     return "This function is still not implemented in this version of the service, but will be in the future"
 
+#Previous version of  a function to get the valence from a specific user and an item
+# @APP.route("/static/emotion/<user>/<item>/", methods = ["GET"])
 
-@APP.route("/static/emotion/<user>/<item>/", methods = ["GET"])
+# def get_emotion_data(user, item): 
+#     try: 
 
-def get_emotion_data(user, item): 
-    try: 
+#         query = db_emotion.users.find( {"user_id": user, "item_id":item} )
+#         APP.logger.info("Before being converted the query was of type: "+str(type(query)))
+#         query_list = list(query)[0] # this is of type DICT, so searching should be easy
+#         query_json = {"Emotion": query_list["emotion"], "Valence": query_list["valence"]
+#         }
 
-        query = db_emotion.users.find( {"user_id": user, "item_id":item} )
-        APP.logger.info("Before being converted the query was of type: "+str(type(query)))
-        query_list = list(query)[0] # this is of type DICT, so searching should be easy
-        query_json = {"Emotion": query_list["emotion"], "Valence": query_list["valence"]
-        }
+#         #return json.dumps(query_json)
 
-        #return json.dumps(query_json)
-
-        return Response(
-        response = json.dumps(query_json), 
-        status = 200, 
-        mimetype = "application/json"
-        )
-    except Exception as ex: 
-        APP.logger.info("Coould not query data: ")
-        APP.logger.info(ex)    
-
-
+#         return Response(
+#         response = json.dumps(query_json), 
+#         status = 200, 
+#         mimetype = "application/json"
+#         )
+#     except Exception as ex: 
+#         APP.logger.info("Coould not query data: ")
+#         APP.logger.info(ex)    
 
 
 
-@APP.route("/static/test/", methods = ["POST"])
-def test_json(): 
-    print("TESTING JSON DATA EXTRACTION")
-    APP.logger.info("This is the app logger")
-    try:
-        json_data = request.get_json(force = True) #output is of type DICT
-        if (request.data): 
-            print("Data size is: "+ str(len(request.data)))
-            print("Data type is: "+ str(type(request.data)))
-        # if (json_data): 
-        #     print("THERE IS JSON DATA IN THE REQUEST")
-        #     print("of type: "+ str(type(json_data)))    
-        for attr in request.args: 
-            print(attr)
-        return json.dumps(json_data)
 
-    except Exception as ex: 
-        print("Could not extract JSON file")
-        APP.logger.info(ex)
-        APP.logger.info("Could not perform the function")
-        print(ex)
+# Test function for incoming / outgoing stream of JSON data
+# @APP.route("/static/test/", methods = ["POST"])
+# def test_json(): 
+#     print("TESTING JSON DATA EXTRACTION")
+#     APP.logger.info("This is the app logger")
+#     try:
+#         json_data = request.get_json(force = True) #output is of type DICT
+#         if (request.data): 
+#             print("Data size is: "+ str(len(request.data)))
+#             print("Data type is: "+ str(type(request.data)))
+#         # if (json_data): 
+#         #     print("THERE IS JSON DATA IN THE REQUEST")
+#         #     print("of type: "+ str(type(json_data)))    
+#         for attr in request.args: 
+#             print(attr)
+#         return json.dumps(json_data)
 
+#     except Exception as ex: 
+#         print("Could not extract JSON file")
+#         APP.logger.info(ex)
+#         APP.logger.info("Could not perform the function")
+#         print(ex)
 
+"""
+    get K Lowest items
+
+    Args: 
+        json body (JSON): Json file as string containing following variables: 
+
+            user (string): id of the user, usually email
+            num (int): number of suggestions asked by the user, meaning number of items being requested for this function
+            valence (double): valence of the user during the request
+"""
 @APP.route("/static/getLowest/", methods = ["POST"])
 def getLowest(): 
     try:
         json_data = request.get_json(force = True) #output is of type DICT
         if (request.data): 
             try:
-                user = json_data["userid"]
+                user = json_data["email"]
                 num = json_data["numOfSuggestions"]
-                courseid = json_data["courseid"]
+                #courseid = json_data["courseid"]
+                #todo: incorporate valence as a filter for the result
+                valence = json_data["valence"]
             except Exception as ex: 
-                APP.logger.info("Variables not in JSON")  
+                APP.logger.info("LOWEST: Missing in JSON file for request")  
                 APP.logger.info(ex)  
         try: 
-
-            #this queries any document of the user, where the valence is greater than 0,  meaning, all documents where there is an entry on valence of emotion.
-            #todo: add some complete data to the database, so i can include the courseid and test run the suggestion feature
             query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
             
             query_list = list(query) # this is of type DICT, so searching should be easy
+            APP.logger.info("Database: Query result frmo mongo: " + str(query_list))
             
 
             query_json = {}
 
             for i in range(len(query_list)): 
-                query_json["document " + str(i)] = str(query_list[i])
+                query_json["ITEM nr: " + str(i+1)] = str(query_list[i]["_id"])
 
             return Response(
             response = json.dumps(query_json), 
@@ -449,7 +524,7 @@ def getLowest():
             mimetype = "application/json"
             )
         except Exception as ex: 
-            APP.logger.info("Coould not query data: ")
+            APP.logger.info("LOWEST: Could not query data: ")
             APP.logger.info(ex)    
 
     except Exception as ex:
