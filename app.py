@@ -13,46 +13,49 @@ from pydub import AudioSegment
 import logging
 import numpy
 import requests
-#import configparser
+import configparser
 
 #todo: make all url, and changing variables to env variables on startup
 
-LANGUAGE = "en-US" #for the speech to text engine
-MONGO_HOST = "localhost"#"137.226.232.75" #"localhost"
-MONGO_PORT = 27017#32112 # 27017
-RASA_URL =  "http://localhost:5005/model/parse" #"http://rasa-nlu.ba-stuecker:5005/model/parse" #"http://localhost:5005/model/parse" #
-RASA_URL_2 = "http://rasa-nlu.svc.cluster.local:5005/model/parse"
-RASA_URL_3 = "http//rasa_nlu:5005/model/parse"
-PORT = 5002
-# try:
-#     print("good here?")
-#     config = configparser.ConfigParser()
-#     config.read("config.ini")
+# LANGUAGE = "en-US" #for the speech to text engine
+# MONGO_HOST = "localhost"#"137.226.232.75" #"localhost"
+# MONGO_PORT = 27017#32112 # 27017
+# RASA_URL =  "http://localhost:5005/model/parse" #"http://rasa-nlu.ba-stuecker:5005/model/parse" #"http://localhost:5005/model/parse" #
+# RASA_URL_2 = "http://rasa-nlu.svc.cluster.local:5005/model/parse"
+# RASA_URL_3 = "http//rasa_nlu:5005/model/parse"
+# PORT = 50022
+try:
+    print("Config: Getting config information from config.ini")
+    config = configparser.ConfigParser()
+    config.read("config.ini")
 
-#     LANGUAGE = config.get("DEFAULT", "LANGUAGE")#"en-US" #for the speech to text engine
-#     MONGO_HOST =  "137.226.232.75" # "localhost"
-#     MONGO_PORT =  32112  #27017
-#     # MONGO_PORT = config.get("MONGO_PORT")
-#     #RASA_URL = "http://rasa-nlu.svc.cluster.local:5005"
-#     RASA_URL = config.get("DEFAULT","RASA")
-#     print("And now?")
-#     PORT = config.get("DEFAULT","PORT")
-# except Exception as ex:
-#     print("AF")
-#     print(ex)
-# else: 
-#     LANGUAGE = LANGUAGE
-#     MONGO_HOST = MONGO_HOST
-#     MONGO_PORT = MONGO_PORT
-#     RASA_URL = RASA_URL
-#     PORT = PORT
+    LANGUAGE = config.get("LOCAL", "LANGUAGE")
+    MONGO_HOST = config.get("LOCAL", "MONGO_HOST")
+    MONGO_PORT = config.get("LOCAL", "MONGO_PORT")
+    RASA_URL = config.get("LOCAL","RASA")
+    PORT = config.get("LOCAL","PORT")
+    print("Config: Success extracting the variables from the config file!")
+except Exception as ex:
+    print("Config: Something went wrong extracting the variables fromt he config file")
+    print(ex)
+else: 
+    LANGUAGE = LANGUAGE
+    MONGO_HOST = MONGO_HOST
+    MONGO_PORT = MONGO_PORT
+    RASA_URL = RASA_URL
+    PORT = PORT
     
 
 
 
 APP = Flask(__name__)
 
-#SWAGGER initializations
+"""
+    Swagger initialization
+
+    Makes  url/swagger and url/static/swagger.json avaliable in order for the service to be detectable by the Social Bot Manager service
+
+"""
 SWAGGER_URL = "/swagger"
 API_URL = "/static/swagger.json"
 SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
@@ -89,7 +92,6 @@ def handle_audio(json_data):
 
             file_temp = open(filename, "wb")
             file_temp.write(audio_decoded)
-            APP.logger.info("Until now no problem")
 
 
             # converting mp3 to wav
@@ -110,7 +112,7 @@ def handle_audio(json_data):
 
         except Exception as ex: 
             APP.logger.info(ex)
-            APP.logger.info("Error with filetype: mp3")
+            APP.logger.info("Audio Decoding: Error with filetype: mp3")
 
     if (fileType == "m4a"): 
         try: 
@@ -122,7 +124,6 @@ def handle_audio(json_data):
 
             file_temp = open(filename, "wb")
             file_temp.write(audio_decoded)
-            APP.logger.info("Until now no problem")
 
             # converting m4a to wav
             src = filename
@@ -130,10 +131,10 @@ def handle_audio(json_data):
             try: 
                 sound = AudioSegment.from_file(src, format ="m4a")
                 sound = sound.split_to_mono()[0]
-                APP.logger.info("SUCESS: audio decoding")
+                APP.logger.info("Audio decoding: success")
             except: 
                 sound = AudioSegment.from_file(src, format = "mp4")
-                APP.logger.info("Changed to mp4 format")    
+                APP.logger.info("Audio decoding: Changed to mp4 format")    
             sound.export(dst, format = "wav")
             
 
@@ -193,9 +194,10 @@ def get_intent(text:str):
 
     params = {'text': text}
     try:
+        APP.logger.info("NLU: Attempting intention detection with rasa endpoint: "+ RASA_URL)
         request = requests.post(RASA_URL, json.dumps(params))
     except:
-        APP.logger.info("1 rasa fail")
+        APP.logger.info("NLU:Error, intention detection could not be performed")
     return request.json()["intent"]["name"]
 
 
@@ -245,10 +247,10 @@ try:
     APP.logger.info("Database: Attempting connection")
     mongo = pymongo.MongoClient(
          host=MONGO_HOST, 
-         port= MONGO_PORT, 
+         port= int(MONGO_PORT), 
          serverSelectionTimeoutMS = 10000
          )
-    APP.logger.info("Checking connection with the DB")
+    APP.logger.info("Checking connection with the DB: "+ MONGO_HOST+":"+ MONGO_PORT)
     mongo.server_info() 
     db = mongo.course
     db_emotion = mongo.emotion
@@ -278,7 +280,7 @@ except Exception as ex:
 def speech_emotion_recognition(): 
 
     try: 
-        APP.logger.info("Extracting JSON data")
+        APP.logger.info("Json: Extracting JSON data")
         # Extracting variables from JSON
         try:
             json_data = request.get_json(force = True) #output is of type DICT
@@ -300,23 +302,23 @@ def speech_emotion_recognition():
             with sr.AudioFile(filename_wav) as source: 
                 audio_data = recognizer.record(source)
                 text_result = recognizer.recognize_sphinx(audio_data, language = LANGUAGE)
-                APP.logger.info("Speech to text: The result from the speech to text recognition is: ")
-                APP.logger.info(text_result)
+                APP.logger.info("Speech to text: Success, result: "+ text_result)
         except Exception as ex:
             APP.logger.info(ex)
-            APP.logger.info("Something went wrong trying performing speech to text")
+            APP.logger.info("Speech to text: Error: Something went wrong trying performing speech to text")
 
 
 
         # Predicting emotion on the resulting audio file
 
         emotion_array = ""
+        valence = -1
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
             # Debug: APP.logger.info(type(emotion_array))
-            APP.logger.info("Emotion Recognition: Predicted emotion succesfully: "+ emotion_array)
+            APP.logger.info("Emotion Recognition: Predicted emotion succesfully: "+ str(emotion_array))
             valence = e_valence(emotion_array)
-            APP.logger.info("Emotion Recognition: Valence was calculated correctly: "+ valence)
+            APP.logger.info("Emotion Recognition: Valence was calculated correctly: "+ str(valence))
 
         except Exception as ex:
             APP.logger.info(ex)
@@ -339,7 +341,7 @@ def speech_emotion_recognition():
         APP.logger.info("NLU: Performing intent detection by rasa server")
         intent = "no intent found"
         intent = get_intent(text_result)
-        APP.logger.info("NLI: Intent detected: "+ text_result)
+        APP.logger.info("NLU: Intent detected: "+ intent)
 
             
         """
