@@ -65,12 +65,14 @@ SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
 APP.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
 
 def handle_audio(json_data): 
-    """Interacte with actions
+    """
+    Audio Handling
 
     Args:
         json_data  (json): a json string, contains an audio file in base64 format
+
     Returns:
-        wav: exports the decoded data into wav audio format in the file temp.wav
+        temp.wav (wav audio file): exports the decoded data into wav audio format in the file temp.wav
 
     """
 
@@ -175,9 +177,11 @@ def handle_audio(json_data):
 
 def e_valence(e_array):
     """
-    Args: activation array with 5 emotions
+    Args: 
+        activation array with 5 emotions
 
-    Returns: a coefficient result of the product of the cross product with some weights which are adjustable
+    Returns: 
+        Coefficient result of the product of the cross product with some weights which are adjustable
 
     """
 
@@ -196,12 +200,18 @@ def get_intent(text:str):
 
 
 """
-    Speech to text function
+    Speech to text fc.
+        methods: 
+            audio_data = reconizer.record(audio_file) preprocesses the data to be used by the model
+            recognizer.reconizer_sphinx() makes prediction based on the CMX sphinx speech to text engine, alternatives can be found on their documentation
+
 """
 recognizer = sr.Recognizer()
 
 """
-    Configuration of Logs for the flask app
+    Configuration of Logs for the flask app:
+        Can be changed by adjusting the logger.setLevel function to a number of different levels. This app has not configure any level other than INFO
+
 """
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -211,11 +221,9 @@ logger.addHandler(handler)
 
 try: 
     """
+        deepemo (DeepEmotionRecognizer) emotion prediction model, takes an array of possible emotions as arguments, and is trained with  .train() method.
 
-        deepemo and detector are the 2 possible prediction models ,they take an array of possible emotions as arguments, and are train with the .train() method.
-
-        In order to change either one of the models, one needs to be outcommented, and the other activated
-
+        detector (EmotionReconizer) alternative model using classification models such as SVC, takes and array of possible emotions as arguments, and is trained with .train()
 
     """
     APP.logger.info("Training the model")
@@ -262,6 +270,8 @@ except Exception as ex:
         user_mail: user email used to identify the user, this should match the email in the course registered in the Mentoring Cockpit service
         fileName: name of the audio file with correct extention: either .mp3, .mp4, .aac
         fileBody: base64 String of the audio coded
+    Response: 
+        JSON file contaning speech to text, emotion prediction, intent prediction, and metadata
 """
 @APP.route("/static/emotion/speech/", methods = ["POST"])
 
@@ -333,9 +343,9 @@ def speech_emotion_recognition():
 
             
         """
-            The update_bot dictionary was use to directy communication with the bot, there for the text: ____ format
+            update_bot (dictionary) can be used to directy communication with the bot, there for the text: ____ format
 
-            The update_db dictionary is used to update the data in the Mongo Database
+            update_db (dictionary) is used to update the data in the Mongo Database
         """
 
         update_bot = {#"user_id": user_id, 
@@ -374,18 +384,15 @@ def speech_emotion_recognition():
         """
             Response to the Mentoring Cockpit service, or any other service making the requests: 
 
-            Args: 
+            updata_db: 
+
                 email (string): user email used to identify the student in the service
-
                 valence (double): result of the get_valence function, number result of the cross product of the activation array from the emtoion detection and some adjustable weights.
-
                 numOfSuggestions (int): number of suggestions asked by the user
-
                 intent (string): intent result from the NLU
-
                 text (string): speech to text result 
-
                 emotion (string): activation array from the emotion recognition service
+
 
         """
         return dumps(update_db)
