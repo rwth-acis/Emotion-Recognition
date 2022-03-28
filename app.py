@@ -29,11 +29,11 @@ try:
     config = configparser.ConfigParser()
     config.read("config.ini")
 
-    LANGUAGE = config.get("LOCAL", "LANGUAGE")
-    MONGO_HOST = config.get("LOCAL", "MONGO_HOST")
-    MONGO_PORT = config.get("LOCAL", "MONGO_PORT")
-    RASA_URL = config.get("LOCAL","RASA")
-    PORT = config.get("LOCAL","PORT")
+    LANGUAGE = config.get("KUBE", "LANGUAGE")
+    MONGO_HOST = config.get("KUBE", "MONGO_HOST")
+    MONGO_PORT = config.get("KUBE", "MONGO_PORT")
+    RASA_URL = config.get("KUBE","RASA")
+    PORT = config.get("KUBE","PORT")
     print("Config: Success extracting the variables from the config file!")
 except Exception as ex:
     print("Config: Something went wrong extracting the variables fromt he config file")
@@ -319,6 +319,8 @@ def speech_emotion_recognition():
             APP.logger.info("Emotion Recognition: Predicted emotion succesfully: "+ str(emotion_array))
             valence = e_valence(emotion_array)
             APP.logger.info("Emotion Recognition: Valence was calculated correctly: "+ str(valence))
+            max_value = max(zip(emotion_array.values(), emotion_array.keys()))[1]
+            print("Emotion: The maximal value of the emotion array : "+ max_value)
 
         except Exception as ex:
             APP.logger.info(ex)
@@ -374,7 +376,8 @@ def speech_emotion_recognition():
                "numOfSuggestions": 2,
                 "intent": str(intent),
                 "text": text_result, 
-                "emotion": str(emotion_array)
+                "emotion": str(emotion_array), 
+                "max_emotion": max_value
 
                 }        
 
@@ -511,9 +514,9 @@ def getLowest():
                 num = json_data["numOfSuggestions"]
                 #courseid = json_data["courseid"]
                 #todo: incorporate valence as a filter for the result
-                valence = json_data["valence"]
+                #valence = json_data["valence"]
             except Exception as ex: 
-                APP.logger.info("LOWEST: Missing in JSON file for request")  
+                APP.logger.info("Lowest: Missing in JSON file for request")  
                 APP.logger.info(ex)  
         try: 
             query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
@@ -525,7 +528,7 @@ def getLowest():
             query_json = {}
 
             for i in range(len(query_list)): 
-                query_json["ITEM nr: " + str(i+1)] = str(query_list[i]["_id"])
+                query_json["ITEM number: " + str(i+1)] = str(query_list[i]["_id"])
 
             return Response(
             response = json.dumps(query_json), 
