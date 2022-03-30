@@ -1,4 +1,5 @@
 from deep_emotion_recognition import DeepEmotionRecognizer
+from emotion_recognition import EmotionRecognizer
 from flask import Flask, Response, request
 import pymongo
 import json
@@ -46,6 +47,19 @@ else:
     PORT = PORT
     
 
+EMOTIONS = ["angry", "sad", "happy"]
+LEARNIN_MODEL = "standard"
+try: 
+    if("happy" in os.environ["EMOTIONS"] ):
+        print("EMOTIONS defined by user: "+ os.environ["EMOTIONS"])
+        EMOTIONS = os.environ["EMOTIONS"]
+    if (os.environ["LEARNING_MODEL"]):
+        print("Learning model defined by user")
+        LEARNING_MODEL = os.environ["LEARNING_MODEL"]
+    else: 
+        pass
+except Exception as ex: 
+    print(ex)
 
 
 APP = Flask(__name__)
@@ -113,6 +127,8 @@ def handle_audio(json_data):
         except Exception as ex: 
             APP.logger.info(ex)
             APP.logger.info("Audio Decoding: Error with filetype: mp3")
+        else: 
+            fileType = fileType
 
     if (fileType == "m4a"): 
         try: 
@@ -186,7 +202,7 @@ def e_valence(e_array):
 
     """
 
-    weights = [-0.5,-1,2,1,1]
+    weights = [-0.5,-1,2,1]
     valence = numpy.dot(weights, list(e_array.values()))
     return valence
 
@@ -198,7 +214,8 @@ def get_intent(text:str):
         request = requests.post(RASA_URL, json.dumps(params))
     except:
         APP.logger.info("NLU:Error, intention detection could not be performed")
-    return request.json()["intent"]["name"]
+    else: 
+        return request.json()["intent"]["name"]
 
 
 """
@@ -228,15 +245,15 @@ try:
         detector (EmotionReconizer) alternative model using classification models such as SVC, takes and array of possible emotions as arguments, and is trained with .train()
 
     """
-    APP.logger.info("Training the model")
-    deepemo = DeepEmotionRecognizer(emotions=['angry', 'sad', 'neutral', 'ps', 'happy'], n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = False)
+    # APP.logger.info("Training the model")
+    deepemo = DeepEmotionRecognizer(emotions=EMOTIONS, n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = True)
     deepemo.train()
     print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
 
     #Alternative recognizer, uses classification methods instead of FNNs
-    # detector = EmotionRecognizer(emotions=["sad", "neutral","happy", "angry", "bored"], verbose=0)
-    # detector.train()
-    # print("Test accuracy score: {:.3f}%".format(detector.test_score()*100))
+    # deepemo = EmotionRecognizer(emotions=["sad","happy", "angry"], verbose=0)
+    # deepemo.train()
+    # print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
 
 except Exception as ex: 
     APP.logger.info(ex)
@@ -292,6 +309,9 @@ def speech_emotion_recognition():
       
         except Exception as ex: 
             APP.logger.info(ex)    
+        else: 
+            user_mail = user_mail
+            json_data = json_data
 
         # Decoding base64 audio string
         filename_wav = handle_audio(json_data)
@@ -306,6 +326,8 @@ def speech_emotion_recognition():
         except Exception as ex:
             APP.logger.info(ex)
             APP.logger.info("Speech to text: Error: Something went wrong trying performing speech to text")
+        else: 
+            text_result = text_result
 
 
 
@@ -315,6 +337,7 @@ def speech_emotion_recognition():
         valence = -1
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
+
             # Debug: APP.logger.info(type(emotion_array))
             APP.logger.info("Emotion Recognition: Predicted emotion succesfully: "+ str(emotion_array))
             valence = e_valence(emotion_array)
@@ -324,7 +347,11 @@ def speech_emotion_recognition():
 
         except Exception as ex:
             APP.logger.info(ex)
-
+        else: 
+            emotion_array = emotion_array
+            valence = valence
+            max_value = max_value
+        emotion_array["angry"] = emotion_array["angry"]-0.3
         # Removing temporary files
         try: 
             if os.path.exists(str(filename_wav)):
@@ -518,6 +545,9 @@ def getLowest():
             except Exception as ex: 
                 APP.logger.info("Lowest: Missing in JSON file for request")  
                 APP.logger.info(ex)  
+            else : 
+                user = user 
+                num = num
         try: 
             query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
             
