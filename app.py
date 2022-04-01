@@ -46,20 +46,24 @@ else:
     RASA_URL = RASA_URL
     PORT = PORT
     
-
-EMOTIONS = ["angry", "sad", "happy"]
-LEARNIN_MODEL = "standard"
+EMOTIONS = ["angry", "sad", "happy", "neutral"]
+LEARNING_MODEL = "standard"
 try: 
-    if("happy" in os.environ["EMOTIONS"] ):
+    if("EMOTIONS" in os.environ ):
         print("EMOTIONS defined by user: "+ os.environ["EMOTIONS"])
+        temp_emotion = os.environ["EMOTIONS"]
+        EMOTIONS = temp_emotion.split(",")
         EMOTIONS = os.environ["EMOTIONS"]
-    if (os.environ["LEARNING_MODEL"]):
-        print("Learning model defined by user")
+    if ("LEARNING_MODEL" in os.environ):
+        print("Learning model defined by user: " +os.environ["LEARNING_MODEL"])
         LEARNING_MODEL = os.environ["LEARNING_MODEL"]
     else: 
-        pass
+        print("Not enviromental variables defined")
 except Exception as ex: 
-    print(ex)
+    print("Something went wrong: "+ ex)
+else: 
+    EMOTIONS = EMOTIONS
+    LEARNING_MODEL = LEARNING_MODEL
 
 
 APP = Flask(__name__)
@@ -245,17 +249,19 @@ try:
         detector (EmotionReconizer) alternative model using classification models such as SVC, takes and array of possible emotions as arguments, and is trained with .train()
 
     """
-    # APP.logger.info("Training the model")
-    deepemo = DeepEmotionRecognizer(emotions=EMOTIONS, n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = True)
-    deepemo.train()
-    print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
-
-    #Alternative recognizer, uses classification methods instead of FNNs
-    # deepemo = EmotionRecognizer(emotions=["sad","happy", "angry"], verbose=0)
-    # deepemo.train()
-    # print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+    if (LEARNING_MODEL == "standard"):
+        # APP.logger.info("Training the model")
+        deepemo = DeepEmotionRecognizer(emotions=EMOTIONS, n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = True)
+        deepemo.train()
+        print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+    else:
+        #Alternative recognizer, uses classification methods instead of FNNs
+        deepemo = EmotionRecognizer(emotions=EMOTIONS, verbose=0)
+        deepemo.train()
+        print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
 
 except Exception as ex: 
+    APP.logger.info("Emotion: Something went wrong setting up the model")
     APP.logger.info(ex)
 
 
@@ -351,7 +357,6 @@ def speech_emotion_recognition():
             emotion_array = emotion_array
             valence = valence
             max_value = max_value
-        emotion_array["angry"] = emotion_array["angry"]-0.3
         # Removing temporary files
         try: 
             if os.path.exists(str(filename_wav)):
