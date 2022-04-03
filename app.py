@@ -33,7 +33,7 @@ try:
     LANGUAGE = config.get("KUBE", "LANGUAGE")
     MONGO_HOST = config.get("KUBE", "MONGO_HOST")
     MONGO_PORT = config.get("KUBE", "MONGO_PORT")
-    RASA_URL = config.get("KUBE","RASA")
+    RASA_URL = config.get("LOCAL","RASA")
     PORT = config.get("KUBE","PORT")
     print("Config: Success extracting the variables from the config file!")
 except Exception as ex:
@@ -45,22 +45,22 @@ else:
     MONGO_PORT = MONGO_PORT
     RASA_URL = RASA_URL
     PORT = PORT
-    
-EMOTIONS = ["angry", "sad", "happy", "neutral"]
-LEARNING_MODEL = "standard"
+
+EMOTIONS = ["angry", "sad", "happy"]
+LEARNING_MODEL = "deep"
 try: 
     if("EMOTIONS" in os.environ ):
         print("EMOTIONS defined by user: "+ os.environ["EMOTIONS"])
-        temp_emotion = os.environ["EMOTIONS"]
+        temp_emotion = str(os.environ["EMOTIONS"])
         EMOTIONS = temp_emotion.split(",")
-        EMOTIONS = os.environ["EMOTIONS"]
+        print("Emotions used: "+ EMOTIONS, type(EMOTIONS))
     if ("LEARNING_MODEL" in os.environ):
         print("Learning model defined by user: " +os.environ["LEARNING_MODEL"])
         LEARNING_MODEL = os.environ["LEARNING_MODEL"]
     else: 
-        print("Not enviromental variables defined")
+        print("Emotion: No enviromental variables defined")
 except Exception as ex: 
-    print("Something went wrong: "+ ex)
+    print("Emotion: Something went wrong : "+ ex)
 else: 
     EMOTIONS = EMOTIONS
     LEARNING_MODEL = LEARNING_MODEL
@@ -206,7 +206,7 @@ def e_valence(e_array):
 
     """
 
-    weights = [-0.5,-1,2,1]
+    weights = [-0.5,-1,2]
     valence = numpy.dot(weights, list(e_array.values()))
     return valence
 
@@ -249,13 +249,15 @@ try:
         detector (EmotionReconizer) alternative model using classification models such as SVC, takes and array of possible emotions as arguments, and is trained with .train()
 
     """
-    if (LEARNING_MODEL == "standard"):
+    if (LEARNING_MODEL == "deep"):
         # APP.logger.info("Training the model")
+        APP.logger.info("Emotion: Training model "+LEARNING_MODEL+"on emotions: "+ str(EMOTIONS))
         deepemo = DeepEmotionRecognizer(emotions=EMOTIONS, n_rnn_layers=2, n_dense_layers=2, rnn_units=128, dense_units=128, verbose = True)
         deepemo.train()
         print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
     else:
         #Alternative recognizer, uses classification methods instead of FNNs
+        APP.logger.info("Emotion: Training "+LEARNING_MODEL+" model on emotions: "+ str(EMOTIONS))
         deepemo = EmotionRecognizer(emotions=EMOTIONS, verbose=0)
         deepemo.train()
         print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
@@ -341,6 +343,7 @@ def speech_emotion_recognition():
 
         emotion_array = ""
         valence = -1
+        max_value = "angry"
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
 

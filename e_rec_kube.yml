@@ -14,12 +14,17 @@ spec:
     spec:
       containers:
       - name: erec
-        image: juanstucker/e_rec:6
+        image: juanstucker/erec:6
         imagePullPolicy: Always
         ports:
         - name: erec
           containerPort: 5001
           protocol: TCP
+      - env: 
+        - name: LEARNING_MODEL
+          value : "deep"
+        - name: EMOTIONS
+          value : 
 ---
 apiVersion: v1
 kind: Service

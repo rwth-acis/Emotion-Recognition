@@ -1,4 +1,5 @@
 
+from pickle import GLOBAL
 from flask import Flask, Response, request
 import requests
 import json
@@ -9,17 +10,21 @@ import numpy as np
 import pymongo
 import copy
 import configparser
+from apscheduler.schedulers.background import BackgroundScheduler
+import time
+import atexit
 
 
 
 
-MONGO_HOST = "137.226.232.75" #"localhost"
-MONGO_PORT = 32112 # 27017
+MONGO_HOST =  "localhost" #"137.226.232.75"
+MONGO_PORT =  27017 #32112
 #URL_2 = "https://affibot.limesurvey.net/index.php/admin/remotecontrol"
 #API_USER_2 = "juanstuecker"
 #API_PASSWORD_2 = "5rqimdSdwR6E"
 #SURVEY_ID_2 = 589811
 #SURVEY_ID_3 = 113484
+SURVEY_IDS = {244663:"Metabolic Integration",375586: "Protein Metabolism"}
 
 
 URL = "https://limesurvey.tech4comp.dbis.rwth-aachen.de/index.php/admin/remotecontrol"
@@ -28,7 +33,7 @@ API_PASSWORD = "janhw3QS4Wrr"
 SURVEY_ID = 294243
 HEADERS = {'content-type': 'application/json'}
 
-NUM_QUESTIONS = 6
+NUM_QUESTIONS = 3
 PORT = 5000 
 
 
@@ -73,7 +78,6 @@ def list_questions(sessionKey, survey_id):
     return request.json()
 
 
-
 def get_survey_coeffs2(surveyid:int):
 
     try:
@@ -94,17 +98,16 @@ def get_survey_coeffs2(surveyid:int):
         print(ex)
 
 
-
-def get_participants_token():
-    participants = list_participants(get_session_key(), SURVEY_ID)
+def get_participants_token(survey_id):
+    participants = list_participants(get_session_key(), survey_id)
     user_token = {}
     for i in participants["result"]:
         user_token[i["token"]] = i["participant_info"]["email"]
     return user_token
 
-def get_item_valence(dict):
-    i1= [0,1,2]
-    i2 = [3,4,5]
+def get_item_valence(dict, item_name):
+    # i1= [0,1,2]
+    # i2 = [3,4,5]
     student_item = {}
 
     for i in dict:
@@ -112,20 +115,84 @@ def get_item_valence(dict):
         student_item[i] = {}
         for j in range(NUM_QUESTIONS):
             valence.append(0)
-            if j in i1:
-                if dict[i][j][1] != '' :
-                    valence[0] += int(dict[i][j][1])
+            # if j in i1:
+            if dict[i][j][1] != '' and dict[i][j][1] :
+                valence[0] += int(dict[i][j][1])
                 # student_item[i]["Item 1"] = valence
-            elif j in i2:
-                if dict[i][j][1] != '' :
-                    valence[1] += int(dict[i][j][1])
+            # elif j in i2:
+            #     if dict[i][j][1] != '' :
+            #         valence[1] += int(dict[i][j][1])
         
-        student_item[i]["1"] = valence[0]
-        student_item[i]["2"] = valence[1]
+        student_item[i][item_name] = valence[0]
+        # student_item[i]["2"] = valence[1]
     return student_item
 
 
+
 APP = Flask(__name__)
+
+@APP.route("/test_routine", methods = ["POST"])
+def test_routine(): 
+    print("Triggered routine!")
+    return ""
+
+@APP.route("/start_routine", methods = ["POST"])
+def start_routine(): 
+    #this phew lines do the whole trick! 
+    global SURVEY_IDS
+    
+    update_list = []
+
+    for i in SURVEY_IDS: 
+        dict =get_survey_coeffs2(i)
+        participants_tokens = get_participants_token(i)
+        items = get_item_valence(dict, SURVEY_IDS[i])
+        for j in items:
+            if j in participants_tokens:
+                for k in items[j]:
+                    update_list.append({"userid":participants_tokens[j],"item":str(k), "valence":items[j][k] })
+    global LIST 
+    LIST = update_list
+    if update_list: 
+        try:
+            db_response = db_quizes.users.insert_many(update_list)
+        except Exception as ex: 
+            print("Something went wrong creating the responses")
+            print(ex)
+
+    return "Success"
+
+
+@APP.route("/trigger_routine", methods = ["POST"])
+def trigger_routine(): 
+    #this phew lines do the whole trick! 
+    for i in SURVEY_IDS: 
+        dict =get_survey_coeffs2(i)
+        participants_tokens = get_participants_token(i)
+        items = get_item_valence(dict, SURVEY_IDS[i])
+        update_list = []
+        for j in items:
+            if j in participants_tokens:
+                for k in items[j]:
+                    update_list.append({"userid":participants_tokens[j],"item":str(k), "valence":items[j][k] })
+    global LIST
+    updated_elements = [i for i in LIST if i not in update_list]
+    # new_elements= [i for i in update_list if i not in LIST] actually, this way around is not needed at all
+    if updated_elements: 
+        try:
+            db_response = db_quizes.users.insert_many(updated_elements)
+        except Exception as ex: 
+            print("Somthing went wrong updating the responses")
+            print(ex)
+
+    return "Success"
+
+"""
+    At this point the updated list contains all scores for the items in the limesurvey
+"""
+
+LIST = []
+UPDATED_LIST = []
 
 
 try: 
@@ -144,59 +211,18 @@ try:
 except Exception as ex:    
     print("ERROR: Cannot connect to the databse") 
     print(ex)
-
-LIST = []
-UPDATED_LIST = []
-
-
-@APP.route("/start_routine", methods = ["POST"])
-def start_routine(): 
-    #this phew lines do the whole trick! 
-    dict =get_survey_coeffs2(SURVEY_ID)
-    participants_tokens = get_participants_token()
-    items = get_item_valence(dict)
-    update_list = []
-    for i in items:
-        if i in participants_tokens:
-            for j in items[i]:
-                update_list.append({"userid":participants_tokens[i],"item":str(j), "valence":items[i][j] })
-    global LIST 
-    LIST = update_list
-    if update_list: 
-        db_response = db_quizes.users.insert_many(update_list)
-    return "Success"
+else: 
+    start_routine()
 
 
-@APP.route("/trigger_routine", methods = ["POST"])
-def trigger_routine(): 
-    #this phew lines do the whole trick! 
-    dict =get_survey_coeffs2(SURVEY_ID)
-    participants_tokens = get_participants_token()
-    items = get_item_valence(dict)
-    update_list = []
-    for i in items:
-        if i in participants_tokens:
-            for j in items[i]:
-                update_list.append({"userid":participants_tokens[i],"item":str(j), "valence":items[i][j] })
-    global LIST
-    updated_elements = [i for i in LIST if i not in update_list]
-    # new_elements= [i for i in update_list if i not in LIST] actually, this way around is not needed at all
-    if updated_elements: 
-        db_response = db_quizes.users.insert_many(updated_elements)
-
-    return "Success"
-
-"""
-    At this point the updated list contains all scores for the items in the limesurvey
-"""
-
-
-
-
-
-
-
+scheduler = BackgroundScheduler()
+scheduler.add_job(func = trigger_routine, trigger="interval", seconds = 30)
+atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":
+    scheduler.start()
     APP.run(host = '0.0.0.0', port = PORT, debug = True)
+    atexit.register(lambda: scheduler.shutdown())
+
+
 
