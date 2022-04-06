@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: limeproxy
+spec:
+  selector:
+    matchLabels:
+      app: limeproxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: limeproxy
+    spec:
+      containers:
+      - name: limeproxy
+        image: juanstucker/lime_proxy:0
+        imagePullPolicy: Always
+        ports:
+        - name: limeproxy
+          containerPort: 5000
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: limeproxy-lb
+  labels:
+    app: limeproxy
+spec:
+  type: NodePort
+  ports:
+  - port: 32113
+    targetPort: 5000
+    nodePort: 32113
+  selector:
+    app: limeproxy
