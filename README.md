@@ -78,3 +78,42 @@ The speech to text engine is the mobile version of the Open Source Project CMU s
 - [Pocketsphinx](https://github.com/cmusphinx/pocketsphinx "P-Sphinx")
 
 - [CMU sphinx](https://cmusphinx.github.io/ "CMU Sphinx")
+
+# Setting up the service
+
+This service depends on a running instance of MongoDB. 
+
+There are 2 options for setting up the necessary enviromental variables in the service
+
+## Config file
+The variables 
+"language" (language for the speech to text engine using standarized abrebiations (e.g. en-US))
+"mongo_host" either the services Adress or localhost/host.docker.internal
+"mongo_port" the port on which the mongo service is working
+"port" port to the flask app, for correct functioning with the Mentoring Cockpit Service it should be 5002
+"rasa" rasa service url as: <SERVICE-ADRESS>:<PORT>/model/parse
+
+## Enviromental variables
+
+It is possible to also set the variables regarding the Speech Emotion Reconignition Model Training. LEARNING_MODEL, EMOTIONS, VALENCE_WEIGHTS can be set as enviromental variables when running the docker image. 
+LEARNING_MODEL
+| Variable  | possible values |
+| ------------- | ------------- |
+| EMOTIONS | subset of [angry, happy, sad, neutral, ps] |
+|  LEARNING_MODEL | Standard, Deep  | 
+| VALENCE_WEIGHTS| c1,c2,...,cn c_i is the valence coefficient for the i_th Emotion in the list|
+
+## Training
+
+The training happens automatically in the beggin of the service. If the set of emotions and model has not been use previously, the model will be trained, this can take some time depening on the quantity of the Learning Data
+
+# Using docker
+
+Build the image using the command in the main Folder
+```
+docker build -t <image name> .
+```
+Run by using the command
+```
+docker run -e LEARNING_MODEL=<learning model> -e EMOTIONS= <e1,...,en> <image name>
+```

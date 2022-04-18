@@ -6,12 +6,11 @@ import json
 from uuid import uuid4
 import ast
 import base64
-import numpy as np
 import pymongo
-import copy
-import configparser
+# import copy
+# import configparser
 from apscheduler.schedulers.background import BackgroundScheduler
-import time
+# import time
 import atexit
 
 
@@ -50,19 +49,18 @@ def set_params(method, params):
     return json.dumps(data)
 
 def get_session_key():
+
     params = {'username': API_USER, 'password': API_PASSWORD}
     data = set_params('get_session_key', params)
     print(data)
     request = requests.post(URL, data=data, headers=HEADERS)
     return request.json()['result']
-
 def extract_data(sessionKey: str, surveyID:int, documentType:str):
     params = {"sSessionKey": sessionKey, "iSurveyID": surveyID, "sDocumentType": documentType}
     data = set_params("export_responses", params)
     print(data)
     request = requests.post(URL, data= data, headers=HEADERS)
     return request.json()
-
 def list_participants(sessionKey, survey_id, start=0, limit=1000, unused=False,
             attributes=False, conditions=[]):
     params = {"sSessionKey": sessionKey, "iSurveyID": survey_id, "iStart":start, "iLimit":limit, "bUnused": unused,"aAttributes":attributes, "aConditions":conditions}
@@ -76,8 +74,6 @@ def list_questions(sessionKey, survey_id):
     print(data)
     request = requests.post(URL, data=data, headers=HEADERS)
     return request.json()
-
-
 def get_survey_coeffs2(surveyid:int):
 
     try:
@@ -96,8 +92,6 @@ def get_survey_coeffs2(surveyid:int):
         return responses_dict
     except Exception as ex:
         print(ex)
-
-
 def get_participants_token(survey_id):
     participants = list_participants(get_session_key(), survey_id)
     user_token = {}
@@ -127,9 +121,40 @@ def get_item_valence(dict, item_name):
         # student_item[i]["2"] = valence[1]
     return student_item
 
-
+def get_keys_from_value(d, val):
+    return [k for k, v in d.items() if v == val]
 
 APP = Flask(__name__)
+
+@APP.route("/get_link", methods = ["POST"])
+def get_link(): 
+    global SURVEY_IDS
+    try: 
+
+        json_data = request.get_json(force = True)
+        email = json_data["email"]
+        quiz_urls = []
+
+        # survey_id = json_data["surveyid"]
+        for i in SURVEY_IDS: 
+            print("Going through quiz"+ str(i))
+
+        
+            token = get_keys_from_value(get_participants_token(survey_id=i),email)
+            if (len(token)>1):
+                print("WARNING:There is more than one token linked with this email!")
+                for j in token: 
+                    quiz_urls.append("https://limesurvey.tech4comp.dbis.rwth-aachen.de/index.php/"+str(i)+"?token="+str(j)+"&lang=en")
+                
+                    
+            else: 
+                print("There is just one account linked to this email "+ str(len(token))+str(type(token)))
+                quiz_urls.append("https://limesurvey.tech4comp.dbis.rwth-aachen.de/index.php/"+str(i)+"?token="+str(token[0])+"&lang=en")
+        return str(quiz_urls)
+    except Exception as ex: 
+        print("Error sending quiz link")
+        print(ex)
+
 
 @APP.route("/test_routine", methods = ["POST"])
 def test_routine(): 
@@ -216,7 +241,7 @@ else:
 
 
 scheduler = BackgroundScheduler()
-scheduler.add_job(func = trigger_routine, trigger="interval", seconds = 30)
+scheduler.add_job(func = trigger_routine, trigger="interval", seconds = 10000)
 atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":

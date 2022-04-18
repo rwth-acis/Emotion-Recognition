@@ -16,6 +16,7 @@ import numpy
 import requests
 import configparser
 
+
 #todo: make all url, and changing variables to env variables on startup
 
 # LANGUAGE = "en-US" #for the speech to text engine
@@ -33,7 +34,7 @@ try:
     LANGUAGE = config.get("KUBE", "LANGUAGE")
     MONGO_HOST = config.get("KUBE", "MONGO_HOST")
     MONGO_PORT = config.get("KUBE", "MONGO_PORT")
-    RASA_URL = config.get("LOCAL","RASA")
+    RASA_URL = config.get("KUBE","RASA")
     PORT = config.get("KUBE","PORT")
     print("Config: Success extracting the variables from the config file!")
 except Exception as ex:
@@ -46,19 +47,26 @@ else:
     RASA_URL = RASA_URL
     PORT = PORT
 
-EMOTIONS = ["angry", "sad", "happy"]
-LEARNING_MODEL = "deep"
+EMOTIONS = ["angry", "sad", "happy", "neutral"]
+LEARNING_MODEL = "standard"
+VALENCE_WEIGHTS = [-1,-1,1,1]
 try: 
     if("EMOTIONS" in os.environ ):
         print("EMOTIONS defined by user: "+ os.environ["EMOTIONS"])
         temp_emotion = str(os.environ["EMOTIONS"])
-        EMOTIONS = temp_emotion.split(",")
-        print("Emotions used: "+ EMOTIONS, type(EMOTIONS))
+        EMOTIONS = list(temp_emotion.split(","))
+        print("Emotions used: "+ str(EMOTIONS), type(EMOTIONS))
     if ("LEARNING_MODEL" in os.environ):
         print("Learning model defined by user: " +os.environ["LEARNING_MODEL"])
         LEARNING_MODEL = os.environ["LEARNING_MODEL"]
+    if ("VALENCE_WEIGHTS" in os.environ):
+        print("Valence weights defined by the user: "+os.environ["VALENCE_WEIGHTS"])
+        temp_weights = str(os.environ["VALENCE_WEIGHTS"])
+        VALENCE_WEIGHTS = list(temp_weights.split(","))
     else: 
         print("Emotion: No enviromental variables defined")
+        EMOTIONS = ["angry", "sad", "happy", "neutral"]
+        LEARNING_MODEL = "standard"
 except Exception as ex: 
     print("Emotion: Something went wrong : "+ ex)
 else: 
@@ -202,13 +210,18 @@ def e_valence(e_array):
         activation array with 5 emotions
 
     Returns: 
-        Coefficient result of the product of the cross product with some weights which are adjustable
+        Coefficient resulat of the product of the cross product with some weights which are adjustable
 
     """
-
-    weights = [-0.5,-1,2]
-    valence = numpy.dot(weights, list(e_array.values()))
-    return valence
+    try:
+        # for i in VALENCE_WEIGHTS: 
+        #     i = float(i)
+        temp_weights = [float(i) for i in VALENCE_WEIGHTS]
+        valence = numpy.dot(temp_weights, list(e_array.values()))
+        return valence
+    except Exception as ex: 
+        APP.logger.info("Weights length does not match emotion length")
+        APP.logger.info(ex)
 
 def get_intent(text:str):
 
@@ -257,10 +270,13 @@ try:
         print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
     else:
         #Alternative recognizer, uses classification methods instead of FNNs
-        APP.logger.info("Emotion: Training "+LEARNING_MODEL+" model on emotions: "+ str(EMOTIONS))
-        deepemo = EmotionRecognizer(emotions=EMOTIONS, verbose=0)
-        deepemo.train()
+        APP.logger.info("Emotion: Training model"+LEARNING_MODEL+" model on emotions: "+ str(EMOTIONS))
+        deepemo = EmotionRecognizer(emotions=list(EMOTIONS), verbose=1, balance=True, custom_db = True, emodb = True)
+        # get the determined sklearn model name
+        print(deepemo.model.__class__.__name__, "is the best")
+        # get the test accuracy score for the best estimator
         print("Test accuracy score: {:.3f}%".format(deepemo.test_score()*100))
+        print(deepemo.confusion_matrix())
 
 except Exception as ex: 
     APP.logger.info("Emotion: Something went wrong setting up the model")
@@ -313,7 +329,7 @@ def speech_emotion_recognition():
         #    course_id = json_data["course_id"]
         #     #item_id = json_data["item_id"] #optional parameter 
             user_mail = json_data["email"]
-            time = datetime.datetime.now()
+            # time = datetime.datetime.now()
       
         except Exception as ex: 
             APP.logger.info(ex)    
@@ -343,7 +359,7 @@ def speech_emotion_recognition():
 
         emotion_array = ""
         valence = -1
-        max_value = "angry"
+        max_value = "default"
         try: 
             emotion_array = deepemo.predict_proba(filename_wav)
 
@@ -451,21 +467,6 @@ def speech_emotion_recognition():
     except Exception as ex:
         APP.logger.info(ex) 
 
-# Previous version of a function to delete spefici files in the contaienr
-# @APP.route("/static/emotion/speech/<fileName>/", methods = ["DELETE"])
-# def detele_audio_file(fileName): 
-#     try: 
-#         if os.path.exists(str(fileName)+".wav"):
-#             print("Trying to remove the file "+ str(fileName)+ " now")
-#             os.remove(fileName+".wav")
-#             return "SUCESS: file deteled"
-#         else: 
-#             print("The file does not exist in the directory" )  
-
-#     except Exception as ex: 
-#         print("Could not remove the file becasue :")
-#         print(ex)
-
 
 
 """
@@ -480,54 +481,6 @@ def speech_emotion_recognition():
 def text_emotion_recognition():
     return "This function is still not implemented in this version of the service, but will be in the future"
 
-#Previous version of  a function to get the valence from a specific user and an item
-# @APP.route("/static/emotion/<user>/<item>/", methods = ["GET"])
-
-# def get_emotion_data(user, item): 
-#     try: 
-
-#         query = db_emotion.users.find( {"user_id": user, "item_id":item} )
-#         APP.logger.info("Before being converted the query was of type: "+str(type(query)))
-#         query_list = list(query)[0] # this is of type DICT, so searching should be easy
-#         query_json = {"Emotion": query_list["emotion"], "Valence": query_list["valence"]
-#         }
-
-#         #return json.dumps(query_json)
-
-#         return Response(
-#         response = json.dumps(query_json), 
-#         status = 200, 
-#         mimetype = "application/json"
-#         )
-#     except Exception as ex: 
-#         APP.logger.info("Coould not query data: ")
-#         APP.logger.info(ex)    
-
-
-
-
-# Test function for incoming / outgoing stream of JSON data
-# @APP.route("/static/test/", methods = ["POST"])
-# def test_json(): 
-#     print("TESTING JSON DATA EXTRACTION")
-#     APP.logger.info("This is the app logger")
-#     try:
-#         json_data = request.get_json(force = True) #output is of type DICT
-#         if (request.data): 
-#             print("Data size is: "+ str(len(request.data)))
-#             print("Data type is: "+ str(type(request.data)))
-#         # if (json_data): 
-#         #     print("THERE IS JSON DATA IN THE REQUEST")
-#         #     print("of type: "+ str(type(json_data)))    
-#         for attr in request.args: 
-#             print(attr)
-#         return json.dumps(json_data)
-
-#     except Exception as ex: 
-#         print("Could not extract JSON file")
-#         APP.logger.info(ex)
-#         APP.logger.info("Could not perform the function")
-#         print(ex)
 
 """
     get K Lowest items
@@ -542,12 +495,15 @@ def text_emotion_recognition():
 @APP.route("/static/getLowest/", methods = ["POST"])
 def getLowest(): 
     try:
+
         json_data = request.get_json(force = True) #output is of type DICT
         if (request.data): 
             try:
                 user = json_data["email"]
                 num = json_data["numOfSuggestions"]
                 #courseid = json_data["courseid"]
+                print("For user: "+user)
+                
                 #todo: incorporate valence as a filter for the result
                 #valence = json_data["valence"]
             except Exception as ex: 
@@ -557,7 +513,7 @@ def getLowest():
                 user = user 
                 num = num
         try: 
-            query = db_emotion.users.find( { "user_id": user, "valence": { "$gte": 0 } } ).sort("valence", -1).limit(int(num))
+            query = db_quizes.users.find( { "userid": user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
             
             query_list = list(query) # this is of type DICT, so searching should be easy
             APP.logger.info("Database: Query result frmo mongo: " + str(query_list))
@@ -566,7 +522,10 @@ def getLowest():
             query_json = {}
 
             for i in range(len(query_list)): 
-                query_json["ITEM number: " + str(i+1)] = str(query_list[i]["_id"])
+                # query_json["Item: " + str(i+1)] = {"name":str(query_list[i]["item"]), "valence": str(query_list[i]["valence"])}
+
+                query_json["Topic: " + str(i+1)] = str(query_list[i]["item"])
+
 
             return Response(
             response = json.dumps(query_json), 

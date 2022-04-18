@@ -1,4 +1,5 @@
 # comment
 .yml
-.ipynb
+.ipynbc
+lime_survey/
 __pycache__
