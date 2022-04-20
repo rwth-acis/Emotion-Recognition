@@ -15,6 +15,7 @@ import logging
 import numpy
 import requests
 import configparser
+import hashlib
 
 
 #todo: make all url, and changing variables to env variables on startup
@@ -92,6 +93,12 @@ SWAGGERUI_BLUEPRINT = get_swaggerui_blueprint(
     }
 )
 APP.register_blueprint(SWAGGERUI_BLUEPRINT, url_prefix=SWAGGER_URL)
+
+def hash_email(email):
+    # return int(hashlib.sha256(email.encode('utf-8')).hexdigest(),16)
+    # return int.from_bytes(hashlib.sha256(b"H").digest()[:8], email.encode('utf-8') )
+    return int.from_bytes(hashlib.sha256(email.encode('utf-8')).digest()[:4] , "little")
+
 
 def handle_audio(json_data): 
     """
@@ -415,7 +422,7 @@ def speech_emotion_recognition():
         #        "time": "today",
                 "text": ("predicted text:" + text_result + " | predicted_emotion:" + str(emotion_array))
                 }
-        update_db = {"email": user_mail, 
+        update_db = {"email": hash_email(user_mail), 
         # "course_id":course_id,
         #  "item_id": item_id,
         #   "audio_type": data_type,
@@ -513,7 +520,7 @@ def getLowest():
                 user = user 
                 num = num
         try: 
-            query = db_quizes.users.find( { "userid": user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
+            query = db_quizes.users.find( { "userid": hash_email(user), "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
             
             query_list = list(query) # this is of type DICT, so searching should be easy
             APP.logger.info("Database: Query result frmo mongo: " + str(query_list))

@@ -14,6 +14,7 @@ import copy
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import atexit
+import hashlib
 
 
 
@@ -49,6 +50,12 @@ PORT = 5000
 #     {"email": "danielastuckermtz@gmail.com", "firstname": "dany"}]
 
 
+def hash_email(email):
+    # return int(hashlib.sha256(email.encode('utf-8')).hexdigest(),16)
+    # return int.from_bytes(hashlib.sha256(b"H").digest()[:8], email.encode('utf-8') )
+    return int.from_bytes(hashlib.sha256(email.encode('utf-8')).digest()[:4] , "little")
+
+
 
 def set_params(method, params):
     data = {'method': method, 'params': params, 'id': str(uuid4())}
@@ -58,7 +65,7 @@ def get_session_key():
 
     params = {'username': API_USER, 'password': API_PASSWORD}
     data = set_params('get_session_key', params)
-    print(data)
+    # print(data)
     request = requests.post(URL, data=data, headers=HEADERS)
     return request.json()['result']
 def extract_data(sessionKey: str, surveyID:int, documentType:str):
@@ -183,7 +190,7 @@ def start_routine():
             for j in items:
                 if j in participants_tokens:
                     for k in items[j]:
-                        update_list.append({"userid":participants_tokens[j],"item":str(k), "valence":items[j][k] })
+                        update_list.append({"userid":hash_email(participants_tokens[j]),"item":str(k), "valence":items[j][k] })
                         
   
     if update_list: 
@@ -222,12 +229,12 @@ def getLowest():
         try: 
             if ((valence) > 0):
 
-                query = db_quizes.users.find( { "userid": user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", -1).limit(int(num))
+                query = db_quizes.users.find( { "userid": hash_email(user), "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", -1).limit(int(num))
                 
                 query_list = list(query) # this is of type DICT, so searching should be easy
-                APP.logger.info("Database: Query result frmo mongo: " + str(query_list))
+                APP.logger.info("Database: Query result from mongo: " + str(query_list))
             elif (valence < 0):
-                query = db_quizes.users.find( { "userid": user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
+                query = db_quizes.users.find( { "userid": hash_email(user), "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
                 
                 query_list = list(query) # this is of type DICT, so searching should be easy
                 APP.logger.info("Database: Query result frmo mongo: " + str(query_list))
@@ -270,7 +277,7 @@ def trigger_routine():
         for j in items:
             if j in participants_tokens:
                 for k in items[j]:
-                    update_list.append({"userid":participants_tokens[j],"item":str(k), "valence":items[j][k]})
+                    update_list.append({"userid":hash_email(participants_tokens[j]),"item":str(k), "valence":items[j][k]})
     global LIST
     print("UPDATE LIST: " +str(update_list))
     print("OLD LIST: "+ str(LIST))
