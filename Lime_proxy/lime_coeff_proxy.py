@@ -36,7 +36,7 @@ API_PASSWORD = "janhw3QS4Wrr"
 # SURVEY_ID = 294243
 HEADERS = {'content-type': 'application/json'}
 
-ITEM_URLS = {"Recommendation Basics":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-1","Evaluation of Recommender Systems": "https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-2", "Trust-based Recommender Learning":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-3", "Expert Identification":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-4", "Time and community aware recommender learning":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-5", "Introduction Slides":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=36#section-1"}
+ITEM_URLS = {"Recommendation Basics":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-1","Evaluation of Recommender Systems": "https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-2", "Trust-based Recommender Learning":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-3", "Expert Identification":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-4", "Time and community aware recommender learning":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-5", "Introduction Slides":"https://moodle.tech4comp.dbis.rwth-aachen.de/course/view.php?id=37#section-1"}
 
 
 NUM_QUESTIONS = 3
@@ -229,12 +229,12 @@ def getLowest():
         try: 
             if ((valence) > 0):
 
-                query = db_quizes.users.find( { "userid": hash_email(user), "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", -1).limit(int(num))
+                query = db_quizes.users.find( { "userid":user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", -1).limit(int(num))
                 
                 query_list = list(query) # this is of type DICT, so searching should be easy
                 APP.logger.info("Database: Query result from mongo: " + str(query_list))
             elif (valence < 0):
-                query = db_quizes.users.find( { "userid": hash_email(user), "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
+                query = db_quizes.users.find( { "userid": user, "valence": { "$gte": 0 } } ).sort("timestamp", +1).sort("valence", +1).limit(int(num))
                 
                 query_list = list(query) # this is of type DICT, so searching should be easy
                 APP.logger.info("Database: Query result frmo mongo: " + str(query_list))
